@@ -24,6 +24,7 @@
     <Compile Include="SkillBox_Project.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Story2.txt" />
     <Content Include="Story.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
