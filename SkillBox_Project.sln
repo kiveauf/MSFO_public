@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31729.503
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "SkillBox_Project", "SkillBox_Project\SkillBox_Project.pyproj", "{C495F248-91EC-4AFC-B39D-1BB96B8D4F60}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C495F248-91EC-4AFC-B39D-1BB96B8D4F60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C495F248-91EC-4AFC-B39D-1BB96B8D4F60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3FBB5377-47C2-4AF8-BE91-34F001CECD24}
+	EndGlobalSection
+EndGlobal
