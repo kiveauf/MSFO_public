@@ -54,14 +54,19 @@ getcontext().rounding = ROUND_HALF_UP
 getcontext().prec = 20
 
 
-def walk(location, remaining_time):
-    cur_loc = list(location.values())[0]
-    time_to_walk = list(location.keys())[0].rsplit("_")[2]
+def walk(locations):
+    global remaining_time
+    global current_location
+    current_location = list(locations.values())[0]
+    time_to_walk = list(locations.keys())[0].rsplit("_")[2]
     time = Decimal(time_to_walk[2:len(time_to_walk)])
     remaining_time -= time
-    return [cur_loc, remaining_time] # if location -> return as dict
 
-def fight(enemy, experience, remaining_time):
+    #return cur_loc # if location -> return as dict
+
+def fight(enemy):
+    global experience
+    global remaining_time
     if isinstance(enemy, str) == True:
         enemy_exp = enemy.split("_")[1]
         exp = int(enemy_exp[3:len(enemy_exp)])
@@ -77,7 +82,6 @@ def fight(enemy, experience, remaining_time):
             experience += exp
             time = Decimal(enemy_time_to_kill[2:len(enemy_time_to_kill)])
             remaining_time -= time
-    return [experience, remaining_time]
 
 def make_actions(location = list()):
     action_list = list()
@@ -90,7 +94,9 @@ def make_actions(location = list()):
             action_list.append(list(way.keys())[0].rsplit("_",1)[0])
     return action_list
 
-def logger(experience, remaining_time):
+def logger():
+    global remaining_time
+    global experience
     print("________________________________")
     print()
     print(f"Your exp = {experience}")
@@ -127,28 +133,27 @@ def print_result(l = list()):
     for i in range(len(l)):
         print(f"{i+1}: {l[i]}")
 
-def greeting(dungeon, remaining_time):
+def greeting(dungeon):
+    global remaining_time
+    global current_location
     print("Welcome to the Dungeon!")
     print("You see the enter of the Dungeon.")
     print("Do you wish to walk in?")
     #action = input("Y/N? \n")
     action = "Y"
     if action == "Y":
-        c_r = walk(dungeon, remaining_time)
-        current_location = c_r[0]
-        remaining_time = c_r[1]
+        walk(dungeon)
     else:
         current_location = "You pussy"
-    return [current_location, remaining_time]
+    return current_location
 
 def play(actions = list()):
     global remaining_time
     remaining_time = Decimal(1234567890.0987654321)
-    
     global current_location
     current_location = list()
     global experience
-    experience = int()
+    experience = 0
     global list_of_actions
     list_of_actions = list()
     global step
@@ -158,32 +163,26 @@ def play(actions = list()):
     with open("rpg.json", mode = "r") as file:
         dungeon = json.load(file)
 
-    c_r = greeting(dungeon, remaining_time) # Start of the run
-    current_location = c_r[0]
-    remaining_time = c_r[1]
+    current_location = greeting(dungeon) # Start of the run
     if isinstance(current_location, str) == True:
         print(current_location)
         raise ZeroDivisionError("Thanks for the game")
 
     while remaining_time > 0 and experience < 280:
         if len(current_location) == 0 :
-            logger(experience, remaining_time)
+            logger()
             break
         list_of_actions = make_actions(current_location) # make list of actions from the current position
         print_result(list_of_actions)
         action = take_action(actions, list_of_actions)
         if list_of_actions[action - 1] == "Mob" or list_of_actions[action - 1] == "Boss" or list_of_actions[action-1].split()[0] == "Group": # fight if chosen
             print(f"You chose to fight with {list_of_actions[action - 1]}!")
-            r_e = fight(current_location[action - 1], experience, remaining_time)
-            experience = r_e[0]
-            remaining_time = r_e[1]
-            current_location.remove(current_location[action-1])
+            fight(current_location[action - 1])
+            current_location.remove(current_location[action - 1])
         if list_of_actions[action - 1].split("_")[0] == "Location": # go further if chosen
             print(f'You chose move forward to {list_of_actions[action - 1]}!')
-            c_r = walk(current_location[action-1], remaining_time)
-            current_location = c_r[0]
-            remaining_time = c_r[1]
-        logger(experience, remaining_time)
+            walk(current_location[action - 1])
+        logger()
         step += 1
     
     remaining_time = int(remaining_time.quantize(Decimal('1')))
