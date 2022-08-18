@@ -50,7 +50,7 @@ from decimal import *
 # если изначально не писать число в виде строки - теряется точность!
 field_names = ['current_location', 'current_experience', 'current_date']
 
-getcontext().rounding = ROUND_UP
+getcontext().rounding = ROUND_HALF_UP
 getcontext().prec = 20
 
 
@@ -108,6 +108,7 @@ def take_action(actions = list(), list_of_actions = list()):
         if __name__ == "__main__":
             action = input()
         if __name__ == "dungeon":
+            print(step)
             action = actions[step]
         if action.isdigit() == False or int(action) > len(list_of_actions) or int(action) < 1:
             step += 1
@@ -141,14 +142,18 @@ def greeting(dungeon, remaining_time):
     return [current_location, remaining_time]
 
 def play(actions = list()):
-
+    global remaining_time
     remaining_time = Decimal(1234567890.0987654321)
-    current_location = dict()
+    
+    global current_location
+    current_location = list()
+    global experience
     experience = int()
-    action = str()
+    global list_of_actions
     list_of_actions = list()
     global step
     step = 0
+    action = str()
 
     with open("rpg.json", mode = "r") as file:
         dungeon = json.load(file)
