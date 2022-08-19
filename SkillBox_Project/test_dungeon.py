@@ -16,6 +16,10 @@ class Test(unittest.TestCase):
         result = play(["3","1","1","1", "1", "1"])
         self.assertEqual(result, [65, 461398980])
 
+    def test_11111_quit(self):
+         result = play(["1","1","1","1","1","2"])
+         self.assertEqual(result, [50, 894167480])
+
     
 
 if __name__ == '__main__':

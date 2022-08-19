@@ -92,6 +92,7 @@ def make_actions(location = list()):
             action_list.append(f"Group of {len(way)} mobs")
         if type(way) == dict:
             action_list.append(list(way.keys())[0].rsplit("_",1)[0])
+    action_list.append("Quit")
     return action_list
 
 def logger():
@@ -114,7 +115,6 @@ def take_action(actions = list(), list_of_actions = list()):
         if __name__ == "__main__":
             action = input()
         if __name__ == "dungeon":
-            print(step)
             action = actions[step]
         if action.isdigit() == False or int(action) > len(list_of_actions) or int(action) < 1:
             step += 1
@@ -122,7 +122,7 @@ def take_action(actions = list(), list_of_actions = list()):
             continue
         else:
             action = int(action)
-        if len(list_of_actions) == 0:
+        if len(list_of_actions) == 1:
             logger()
             break
     return action
@@ -176,6 +176,7 @@ def play(actions = list()):
         list_of_actions = make_actions(current_location) # make list of actions from the current position
         print_result(list_of_actions)
         action = take_action(actions, list_of_actions)
+        print(action)
         if list_of_actions[action - 1] == "Mob" or list_of_actions[action - 1] == "Boss" or list_of_actions[action-1].split()[0] == "Group": # fight if chosen
             print(f"You chose to fight with {list_of_actions[action - 1]}!")
             fight(current_location[action - 1])
@@ -183,11 +184,17 @@ def play(actions = list()):
         if list_of_actions[action - 1].split("_")[0] == "Location": # go further if chosen
             print(f'You chose move forward to {list_of_actions[action - 1]}!')
             walk(current_location[action - 1])
+        if list_of_actions[action - 1] == "Quit":
+            print("You've scared, pathetic worm!")
+            logger()
+            break
         logger()
         step += 1
     
     remaining_time = int(remaining_time.quantize(Decimal('1')))
     print("Thanks for the game!")
+    print("________________________________")
+
     return [experience, remaining_time]
 
 if __name__ == "__main__":
