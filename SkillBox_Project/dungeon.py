@@ -45,6 +45,7 @@
 # 3.Выход
 
 import json
+import datetime
 import time
 from decimal import *
 
@@ -94,7 +95,7 @@ def make_actions(location = list()):
     action_list = list()
     for way in location:
         if isinstance(way, str) == True:
-            action_list.append(way.split("_")[0])
+            action_list.append(f'{way.split("_")[0]} получите опыта {way.split("_")[1]} и потратите времени {way.split("_")[2]}')
         if isinstance(way, list) == True:
             action_list.append(f"Group of {len(way)} mobs")
         if type(way) == dict:
@@ -141,7 +142,11 @@ def take_action(actions = list(), list_of_actions = list()):
     return action
 
 def print_result(l = list()):
-    print(f"Вы видите {l}")
+    print("Вы видите:", end = "")
+    for i in range(len(l) - 2):
+        if l[i] != "Quit":
+            print(f'{l[i].split(" ")[0]}, ', end = "")
+    print(f'{l[len(l) - 2].split(" ")[0]}.')
     print("Возможные действия:")
     for i in range(len(l)):
         print(f"{i+1}: {l[i]}")
@@ -196,7 +201,7 @@ def play(actions = list()):
         print_result(list_of_actions)
         action = take_action(actions, list_of_actions)
         print(action)
-        if list_of_actions[action - 1] == "Mob" or list_of_actions[action - 1] == "Boss" or list_of_actions[action-1].split()[0] == "Group": # fight if chosen
+        if list_of_actions[action - 1].split(" ")[0] == "Mob" or list_of_actions[action - 1].split(" ")[0] == "Boss" or list_of_actions[action-1].split()[0] == "Group": # fight if chosen
             print(f"You chose to fight with {list_of_actions[action - 1]}!")
             fight(current_location[action - 1])
             current_location.remove(current_location[action - 1])
