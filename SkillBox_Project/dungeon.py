@@ -149,14 +149,15 @@ def greeting(dungeon):
 
 def play(actions = list()):
     global remaining_time
-    remaining_time = Decimal(1234567890.0987654321)
     global current_location
-    current_location = list()
     global experience
-    experience = 0
     global list_of_actions
-    list_of_actions = list()
     global step
+
+    remaining_time = Decimal(1234567890.0987654321)
+    current_location = list()
+    experience = 0
+    list_of_actions = list()
     step = 0
     action = str()
 
