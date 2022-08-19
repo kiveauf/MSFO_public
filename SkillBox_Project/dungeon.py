@@ -45,6 +45,7 @@
 # 3.Выход
 
 import json
+import time
 from decimal import *
 
 # если изначально не писать число в виде строки - теряется точность!
@@ -57,31 +58,37 @@ getcontext().prec = 20
 def walk(locations):
     global remaining_time
     global current_location
+    global play_time
+    
     current_location = list(locations.values())[0]
     time_to_walk = list(locations.keys())[0].rsplit("_")[2]
-    time = Decimal(time_to_walk[2:len(time_to_walk)])
-    remaining_time -= time
-
+    number_time = Decimal(time_to_walk[2:len(time_to_walk)])
+    remaining_time -= number_time
+    play_time += return_time(number_time)
     #return cur_loc # if location -> return as dict
 
 def fight(enemy):
     global experience
     global remaining_time
+    global play_time
+    
     if isinstance(enemy, str) == True:
         enemy_exp = enemy.split("_")[1]
         exp = int(enemy_exp[3:len(enemy_exp)])
         enemy_time_to_kill = enemy.split("_")[2]
         experience += exp
-        time = Decimal(enemy_time_to_kill[2:len(enemy_time_to_kill)])
-        remaining_time -= time
+        number_time = Decimal(enemy_time_to_kill[2:len(enemy_time_to_kill)])
+        play_time += return_time(number_time)
+        remaining_time -= number_time
     if isinstance(enemy, list) == True:
         for mob in enemy:
             enemy_exp = mob.split("_")[1]
             exp = int(enemy_exp[3:len(enemy_exp)])
             enemy_time_to_kill = mob.split("_")[2]
             experience += exp
-            time = Decimal(enemy_time_to_kill[2:len(enemy_time_to_kill)])
-            remaining_time -= time
+            number_time = Decimal(enemy_time_to_kill[2:len(enemy_time_to_kill)])
+            play_time += return_time(number_time)
+            remaining_time -= number_time
 
 def make_actions(location = list()):
     action_list = list()
@@ -98,15 +105,21 @@ def make_actions(location = list()):
 def logger():
     global remaining_time
     global experience
+    global play_time
+    global start_time
+
     print("________________________________")
     print()
     print(f"Your exp = {experience}")
     print(f"Remaining time = {remaining_time}")
+    print(f"Time spent = {play_time - start_time}")
     print("________________________________")
     print()
 
+def return_time(decimal_time):
+    return int(decimal_time.quantize(Decimal('1')))
+
 def take_action(actions = list(), list_of_actions = list()):
-    
     global step
 
     action = str()
@@ -153,7 +166,13 @@ def play(actions = list()):
     global experience
     global list_of_actions
     global step
+    global start_time
+    global play_time
+    global delta_time
 
+    start_time = time.time_ns()
+    play_time = time.time_ns()
+    delta_time = start_time - play_time
     remaining_time = Decimal(1234567890.0987654321)
     current_location = list()
     experience = 0
@@ -191,7 +210,7 @@ def play(actions = list()):
         logger()
         step += 1
     
-    remaining_time = int(remaining_time.quantize(Decimal('1')))
+    remaining_time = return_time(remaining_time)
     print("Thanks for the game!")
     print("________________________________")
 
