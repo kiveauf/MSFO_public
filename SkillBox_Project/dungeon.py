@@ -47,6 +47,7 @@
 import json
 import datetime
 import time
+import csv
 from decimal import *
 
 # если изначально не писать число в виде строки - теряется точность!
@@ -72,7 +73,6 @@ def fight(enemy):
     global experience
     global remaining_time
     global play_time
-    
     if isinstance(enemy, str) == True:
         enemy_exp = enemy.split("_")[1]
         exp = int(enemy_exp[3:len(enemy_exp)])
@@ -108,21 +108,30 @@ def logger():
     global experience
     global play_time
     global start_time
-
+    global field_names
+    global current_location
+    global delta_time
+    global date_of_game
+    if delta_time != play_time - start_time:
+        delta_time = play_time - start_time
+        date_of_game += datetime.timedelta(seconds = delta_time)
     print("________________________________")
     print()
     print(f"Your exp = {experience}")
     print(f"Remaining time = {remaining_time}")
-    print(f"Time spent = {play_time - start_time}")
+    print(f"Time spent = {delta_time}")
     print("________________________________")
     print()
+    with open('dungeon.csv', 'a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames = field_names)
+        writer.writerow({'current_location': current_location, 'current_experience': experience, 'current_date': date_of_game})
+
 
 def return_time(decimal_time):
     return int(decimal_time.quantize(Decimal('1')))
 
 def take_action(actions = list(), list_of_actions = list()):
     global step
-
     action = str()
     print("Выберите действие. Ваш ход: ")
     while isinstance(action, int) != True or action > len(list_of_actions): # check if chosen action is from the list
@@ -174,25 +183,27 @@ def play(actions = list()):
     global start_time
     global play_time
     global delta_time
-
+    global date_of_game
+    date_of_game = datetime.datetime(year = 2022, month = 6, day = 6)
     start_time = time.time_ns()
     play_time = time.time_ns()
-    delta_time = start_time - play_time
+    delta_time = 0
     remaining_time = Decimal(1234567890.0987654321)
     current_location = list()
     experience = 0
     list_of_actions = list()
     step = 0
     action = str()
-
     with open("rpg.json", mode = "r") as file:
         dungeon = json.load(file)
-
     current_location = greeting(dungeon) # Start of the run
     if isinstance(current_location, str) == True:
         print(current_location)
         raise ZeroDivisionError("Thanks for the game")
-
+    with open('dungeon.csv', 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames = field_names,)
+        writer.writeheader()
+        writer.writerow({'current_location': current_location, 'current_experience': experience, 'current_date': date_of_game})
     while remaining_time > 0 and experience < 280:
         if len(current_location) == 0 :
             logger()
@@ -214,11 +225,9 @@ def play(actions = list()):
             break
         logger()
         step += 1
-    
     remaining_time = return_time(remaining_time)
     print("Thanks for the game!")
     print("________________________________")
-
     return [experience, remaining_time]
 
 if __name__ == "__main__":
