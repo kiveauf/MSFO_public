@@ -40,38 +40,41 @@ def edit_data(text): #takes whole str doc and return list of str
                 ed = 1000 #measuring unit
             if word in ["млн.", "млн", "миллионах", "millions"]:
                 ed = 1000000 #measuring unit
-    print(ed)
+    #print(ed)
     return stroki
 
 def del_whitespaces(clear_text):
     while clear_text.count("  ") != 0:
         whitespaces = clear_text.find("  ")
-        if (whitespaces - 1 > 0) and (whitespaces + 2 < len(clear_text)):
+        if (whitespaces - 1 >= 0) and (whitespaces + 2 < len(clear_text)):
             if clear_text[whitespaces - 1].isdigit() == False and clear_text[whitespaces + 2].isdigit() == False:
                 clear_text = clear_text.replace("  ", " ", 1)
-            if clear_text[whitespaces - 1].isdigit() == True or clear_text[whitespaces + 2].isdigit() == True:
+            else:
                 break
-        if (whitespaces == 0) and (whitespaces + 2 < len(clear_text)):
+        elif (whitespaces == 0) and (whitespaces + 2 < len(clear_text)):
             if clear_text[whitespaces + 2].isdigit() == False:
                 clear_text = clear_text.replace("  ", " ", 1)
-            if clear_text[whitespaces + 2].isdigit() == True:
+            else:
                 break
-        if (whitespaces - 1 > 0) and (whitespaces + 2 == len(clear_text)):
+        elif (whitespaces - 1 >= 0) and (whitespaces + 2 == len(clear_text) - 1):
             if clear_text[whitespaces - 1].isdigit() == False:
                 clear_text = clear_text.replace("  ", " ", 1)
-            if clear_text[whitespaces - 1].isdigit() == True:
+            else:
                 break
+        else:
+            break
     return clear_text
 
 def read_content(tkr, filename):
     info_pribyl = "No data"
     _pdf = open(filename, 'rb')
     pdf_file = PyPDF2.PdfFileReader(_pdf, strict=False)
-    page_dohod = pdf_file.pages[24]
-    info = page_dohod.extract_text()
-    info = edit_data(text = info) #info now is list
-    for i in info:
-        print(i)
+    page_dohod = pdf_file.pages
+    for page in page_dohod:
+        info = page.extract_text()
+        info = edit_data(text = info) #info now is list
+        for i in info:
+            print(i)
     #for param in info.splitlines():
     #    if param.startswith("Прибыль за год") == True or param.startswith("Чистая прибыль") == True:
     #        info_pribyl = f"{param}"
@@ -102,7 +105,7 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
         ]
 
-file_url = docs[2]
+file_url = docs[0]
 ticker = Ticker()
 
 get_file(tkr = ticker, url = file_url)
