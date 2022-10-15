@@ -5,6 +5,10 @@ import tabula
 import os
 import requests
 import pdfplumber
+import logging
+
+logger = logging.getLogger("PyPDF2")
+logger.setLevel(logging.CRITICAL)
 
 class Ticker():
     def _init_(self):
@@ -89,12 +93,12 @@ def read_content(tkr, filename):
     for page in page_dohod:
         info = page.extract_text()
         info = edit_data(text = info) #info now is list
-        if len(info) != 0 and len(info_list) < 8:
+        if len(info) != 0 and len(info_list) < 4:
             info_list.append(info)
-            info_list.append("____________________")
     print("Content ready")
-    for page in info_list:
-        print(page)
+    print(len(info_list))
+    #for page in info_list:
+    #    print(page)
     #for param in info.splitlines():
     #    if param.startswith("Прибыль за год") == True or param.startswith("Чистая прибыль") == True:
     #        info_pribyl = f"{param}"
@@ -125,7 +129,7 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
         ]
 
-file_url = docs[0]
+file_url = docs[2]
 ticker = Ticker()
 filename = str()
 info_list = list()
