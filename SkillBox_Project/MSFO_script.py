@@ -1,6 +1,5 @@
 #script to collect and analyze data from msfo sheets and real stock price
 
-from string import whitespace
 import PyPDF2
 import tabula
 import os
@@ -40,8 +39,11 @@ def edit_data(text): #takes whole str doc and return list of str
                 ed = 1000 #measuring unit
             if word in ["млн.", "млн", "миллионах", "millions"]:
                 ed = 1000000 #measuring unit
-    #print(ed)
-    return stroki
+    stroki = check(stroki)
+    if len(stroki) == 0:
+        return []
+    else:
+        return stroki
 
 def del_whitespaces(clear_text):
     while clear_text.count("  ") != 0:
@@ -65,7 +67,21 @@ def del_whitespaces(clear_text):
             break
     return clear_text
 
+def check(page):
+    otchet = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
+              "Консолидированный отчет о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
+              "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированный отчет об изменениях в капитале",
+              "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
+              ]
+    for stroka in page:
+        for headline in otchet:
+            if stroka.count(headline) != 0:
+                return page
+    return []
+
 def read_content(tkr, filename):
+    print("Reading content")
+    global info_list
     info_pribyl = "No data"
     _pdf = open(filename, 'rb')
     pdf_file = PyPDF2.PdfFileReader(_pdf, strict=False)
@@ -73,8 +89,12 @@ def read_content(tkr, filename):
     for page in page_dohod:
         info = page.extract_text()
         info = edit_data(text = info) #info now is list
-        for i in info:
-            print(i)
+        if len(info) != 0 and len(info_list) < 8:
+            info_list.append(info)
+            info_list.append("____________________")
+    print("Content ready")
+    for page in info_list:
+        print(page)
     #for param in info.splitlines():
     #    if param.startswith("Прибыль за год") == True or param.startswith("Чистая прибыль") == True:
     #        info_pribyl = f"{param}"
@@ -107,6 +127,8 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
 
 file_url = docs[0]
 ticker = Ticker()
+filename = str()
+info_list = list()
 
 get_file(tkr = ticker, url = file_url)
 read_content(tkr = ticker, filename = filename)
