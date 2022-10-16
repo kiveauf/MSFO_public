@@ -3,6 +3,8 @@
 import PyPDF2
 import requests
 import logging
+import time
+
 #import tabula
 #import pdfplumber
 
@@ -28,8 +30,8 @@ def edit_data(text): #takes whole str doc and return list of str
     global ed
     clear_text = str()
     stroki = list()
-    stroki = check(stroki)
-
+    if len(check(text)) == 0:
+        return []
     for stroka in text.splitlines():
         if len(stroka.strip()) == 0 or stroka == "\n":
             stroka = stroka.strip(" \n")
@@ -44,11 +46,7 @@ def edit_data(text): #takes whole str doc and return list of str
                 ed = 1000 #measuring unit
             if word in ["млн.", "млн", "миллионах", "millions"]:
                 ed = 1000000 #measuring unit
-    stroki = check(stroki)
-    if len(stroki) == 0:
-        return []
-    else:
-        return stroki
+    return stroki
 
 def edit_whitespaces(clear_text): # clearing line of text
     c_t = str()
@@ -82,19 +80,20 @@ def edit_whitespaces(clear_text): # clearing line of text
     clear_text = c_t #1 whitespace added among numbers and text
     return clear_text
 
-def check(page):
+def check(page): #takes lines of text
     report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
               "Консолидированный отчет о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
               "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированный отчет об изменениях в капитале",
               "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
               ]
     oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
-    for stroka in page:
+    for stroka in page.splitlines():
+        #print(stroka)
         for line in oglavlenie:
-            if stroka.count(line) != 0:
+            if " ".join(stroka.split()).count(line) >= 1:
                 return []
         for headline in report:
-            if stroka.count(headline) != 0:
+            if " ".join(stroka.split()).count(headline) >= 1:
                 return page
     return []
 
@@ -148,12 +147,16 @@ ticker = Ticker()
 filename = str()
 pages = list()
 
+start_time = time.time() #checking how long code executes
+
 filename = get_file(tkr = ticker, url = file_url)
 data = read_content(filename)
 for page in data:
     for line in page:
         print(line)
     print("____________________________")
+print(f"--- {time.time() - start_time} seconds ---")
+
 #analyze_data(data)
 
 
