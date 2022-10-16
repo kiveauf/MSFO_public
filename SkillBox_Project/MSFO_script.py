@@ -1,11 +1,10 @@
 #script to collect and analyze data from msfo sheets and real stock price
 
 import PyPDF2
-import tabula
-import os
 import requests
-import pdfplumber
 import logging
+#import tabula
+#import pdfplumber
 
 logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
@@ -18,12 +17,12 @@ class Ticker():
         self.stock_price = int()
 
 def get_file(tkr, url): # take url of the file
-    global filename
     file = requests.get(url)
     tkr.ticker_name = "ticker" #input("Type ticker: ")
     filename = f"{tkr.ticker_name}_MSFO.pdf"
     open(filename,'wb').write(file.content)
     print("Done")
+    return filename
 
 def edit_data(text): #takes whole str doc and return list of str
     global ed
@@ -72,42 +71,45 @@ def del_whitespaces(clear_text):
     return clear_text
 
 def check(page):
-    otchet = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
+    report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
               "Консолидированный отчет о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
               "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированный отчет об изменениях в капитале",
               "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
               ]
+    oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
     for stroka in page:
-        for headline in otchet:
+        for line in oglavlenie:
+            if stroka.count(line) != 0:
+                return []
+        for headline in report:
             if stroka.count(headline) != 0:
                 return page
     return []
 
-def read_content(tkr, filename):
+def read_content(filename): #takes file and returns list of string lists
     print("Reading content")
-    global info_list
-    info_pribyl = "No data"
+    global pages
     _pdf = open(filename, 'rb')
     pdf_file = PyPDF2.PdfFileReader(_pdf, strict=False)
     page_dohod = pdf_file.pages
     for page in page_dohod:
         info = page.extract_text()
         info = edit_data(text = info) #info now is list
-        if len(info) != 0 and len(info_list) < 4:
-            info_list.append(info)
+        if len(info) != 0 and len(pages) < 4:
+            pages.append(info)
     print("Content ready")
-    print(len(info_list))
-    #for page in info_list:
-    #    print(page)
-    #for param in info.splitlines():
-    #    if param.startswith("Прибыль за год") == True or param.startswith("Чистая прибыль") == True:
-    #        info_pribyl = f"{param}"
-    #        tkr.pribyl = param.split("  ")[1].lstrip()
-    #        break
-    #print(info_pribyl, "необходимое число -", tkr.pribyl)
+    print(len(pages))
+    return pages
         
-def analyze_data():
-    pass
+def analyze_data(pages):
+    pribyl_list = ["Прибыль за год", "Чистая прибыль"]
+    for page in pages:
+        for param in page:
+            for name in pribyl_list:
+                if param.count(name) != 0:
+                    print(param)
+                    ticker.pribyl = param.split("  ")[1].lstrip()
+                    print(param, "необходимое число -", ticker.pribyl)
 
 #def tab(url):
 #    data = tabula.read_pdf(url, pages = '12', stream = True, guess=False)
@@ -132,8 +134,13 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
 file_url = docs[2]
 ticker = Ticker()
 filename = str()
-info_list = list()
+pages = list()
 
-get_file(tkr = ticker, url = file_url)
-read_content(tkr = ticker, filename = filename)
+filename = get_file(tkr = ticker, url = file_url)
+data = read_content(filename)
+for page in data:
+    print(page)
+    print("____________________________")
+#analyze_data(data)
+
 
