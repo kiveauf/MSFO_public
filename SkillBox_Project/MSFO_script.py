@@ -28,12 +28,14 @@ def edit_data(text): #takes whole str doc and return list of str
     global ed
     clear_text = str()
     stroki = list()
+    stroki = check(stroki)
+
     for stroka in text.splitlines():
         if len(stroka.strip()) == 0 or stroka == "\n":
             stroka = stroka.strip(" \n")
             continue
         if stroka[0].isupper() == True:
-            clear_text = del_whitespaces(clear_text)
+            clear_text = edit_whitespaces(clear_text)
             stroki.append(clear_text)
             clear_text = ""
         clear_text += stroka + " "
@@ -48,7 +50,8 @@ def edit_data(text): #takes whole str doc and return list of str
     else:
         return stroki
 
-def del_whitespaces(clear_text):
+def edit_whitespaces(clear_text): # clearing line of text
+    c_t = str()
     while clear_text.count("  ") != 0:
         whitespaces = clear_text.find("  ")
         if (whitespaces - 1 >= 0) and (whitespaces + 2 < len(clear_text)):
@@ -68,6 +71,15 @@ def del_whitespaces(clear_text):
                 break
         else:
             break
+    for i in range(len(clear_text) - 1):
+        c_t += clear_text[i]
+        if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isalpha() == True:
+           c_t += " "
+        elif clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1].isdigit() == True:
+           c_t += " "
+        elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
+           c_t += " "
+    clear_text = c_t #1 whitespace added among numbers and text
     return clear_text
 
 def check(page):
@@ -139,7 +151,8 @@ pages = list()
 filename = get_file(tkr = ticker, url = file_url)
 data = read_content(filename)
 for page in data:
-    print(page)
+    for line in page:
+        print(line)
     print("____________________________")
 #analyze_data(data)
 
