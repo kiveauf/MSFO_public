@@ -70,13 +70,29 @@ def edit_whitespaces(clear_text): # clearing line of text
         else:
             break
     for i in range(len(clear_text) - 1):
+        if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
+           continue
+        if clear_text[i] == " " and clear_text[i+1] == "/" and clear_text[i-1].isalpha() == True:
+           continue
+        if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1].isalpha() == True:
+           continue
+        if clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "/":
+           continue
+        if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1] == "(":
+           continue
+        if clear_text[i] == " " and clear_text[i-1] == "(" and clear_text[i+1].isalpha() == True:
+           continue
+        if clear_text[i] == " " and clear_text[i+1] == ")" and clear_text[i-1].isalpha() == True:
+           continue
         c_t += clear_text[i]
-        if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isalpha() == True:
+        if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isdigit() == True:
            c_t += " "
         elif clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1].isdigit() == True:
            c_t += " "
         elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
            c_t += " "
+        #if clear_text[i-1].isalpha() == True and clear_text[i] == "," and clear_text[i+1].isalpha() == True:
+        #   c_t += " "
     clear_text = c_t #1 whitespace added among numbers and text
     return clear_text
 
@@ -142,7 +158,7 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
         ]
 
-file_url = docs[2]
+file_url = docs[0]
 ticker = Ticker()
 filename = str()
 pages = list()
