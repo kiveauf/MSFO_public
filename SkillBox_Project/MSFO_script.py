@@ -5,8 +5,7 @@ import requests
 import logging
 import time
 
-import tabula
-import pdfplumber
+
 
 logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
@@ -49,7 +48,6 @@ def edit_data(text): #takes whole str doc and return list of str
     return stroki
 
 def edit_whitespaces(clear_text): # clearing line of text
-    prim_list = ["Примечание", "Прим."]
     c_t = str()
     while clear_text.count("  ") != 0:
         whitespaces = clear_text.find("  ")
@@ -92,12 +90,7 @@ def edit_whitespaces(clear_text): # clearing line of text
            c_t += " "
         elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
            c_t += " "
-        #if clear_text[i-1].isalpha() == True and clear_text[i] == "," and clear_text[i+1].isalpha() == True:
-        #   c_t += " "
     clear_text = c_t #1 whitespace added among numbers and text
-    for name in prim_list:
-        if clear_text.count(name) >= 1:
-            clear_text
     return clear_text
 
 def check(page): #takes lines of text
@@ -108,7 +101,6 @@ def check(page): #takes lines of text
               ]
     oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
     for stroka in page.splitlines():
-        #print(stroka)
         for line in oglavlenie:
             if " ".join(stroka.split()).count(line) >= 1:
                 return []
@@ -119,7 +111,6 @@ def check(page): #takes lines of text
 
 def read_content(filename): #takes file and returns list of string lists
     print("Reading content")
-    global pages
     _pdf = open(filename, 'rb')
     pdf_file = PyPDF2.PdfFileReader(_pdf, strict=False)
     page_dohod = pdf_file.pages
@@ -129,24 +120,41 @@ def read_content(filename): #takes file and returns list of string lists
         if len(info) != 0 and len(pages) < 4:
             pages.append(info)
     print("Content ready")
-    print(len(pages))
     return pages
         
-def analyze_data(pages, measuring_unit):
+def collect_data(pages, measuring_unit):
     viruchka_list = ["Выручка"]
+    pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода"]
     for line in pages[1]:
         for name in viruchka_list:
-            if line.count(name) >= 1:
-                ticker.viruchka = line.split("  ")[1]
-                print(ticker.viruchka)
-            
-    #pribyl_list = ["Прибыль за год", "Чистая прибыль"]
-    #for line in pages[1]:
-    #    for name in pribyl_list:
-    #        if line.count(name) >= 1:
-    #            print(line)
-    #            ticker.pribyl = line.split("  ")[1].lstrip()
-    #            print(line, "необходимое число -", ticker.pribyl)
+            if line.count(name) >= 1 and is_valid(line) == True:
+                viruchka_parts = line.split("  ")[1].split()
+                ticker.viruchka = int("".join(viruchka_parts[1:len(viruchka_parts)])) * measuring_unit
+                print(f"Выручка - {ticker.viruchka}")
+        for name in pribyl_list:
+            if line.count(name) >= 1 and is_valid(line) == True:
+                ticker.pribyl = int("".join(line.split("  ")[1].split())) * measuring_unit
+                print(f"Прибыль - {ticker.pribyl}")
+
+def is_valid(line):
+    for i in line.strip():
+        if i.isdigit() == True:
+            return True
+    return False
+
+def print_data(pages):
+    for page in pages:
+        for line in page:
+            print(line)
+            print("____________________________")
+
+def get_price(ticker):
+    pass
+
+def analyze_data():
+    pass
+
+
 
 #def tab(url):
 #    data = tabula.read_pdf(url, pages = '12', stream = True, guess=False)
@@ -168,7 +176,7 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
         ]
 
-file_url = docs[0]
+file_url = docs[1]
 ticker = Ticker()
 filename = str()
 pages = list()
@@ -177,13 +185,10 @@ measure_unit = int()
 #start_time = time.time() #checking how long code executes
 
 filename = get_file(tkr = ticker, url = file_url)
-data = read_content(filename)
-for page in data:
-    for line in page:
-        print(line)
-    print("____________________________")
+pages = read_content(filename)
+collect_data(pages, measure_unit)
+get_price(ticker)
+#analyze_data(ticker)
+
 #print(f"--- {time.time() - start_time} seconds ---")
-
-#analyze_data(data, measure_unit)
-
 
