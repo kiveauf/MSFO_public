@@ -4,23 +4,26 @@ import PyPDF2
 import requests
 import logging
 import time
-
-
+import bs4
+from requests_html import HTMLSession
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 
 logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
 
 class Ticker():
     def _init_(self):
-        self.ticker_name = str()
+        self.name = str()
         self.pribyl = 0
         self.viruchka = 0
-        self.stock_price = int()
+        self.price = int()
 
 def get_file(tkr, url): # take url of the file
     file = requests.get(url)
-    tkr.ticker_name = "ticker" #input("Type ticker: ")
-    filename = f"{tkr.ticker_name}_MSFO.pdf"
+    tkr.name = input("Type ticker: ")
+    tkr.name = tkr.name.lower()
+    filename = f"{tkr.name}_MSFO.pdf"
     open(filename,'wb').write(file.content)
     print("Done")
     return filename
@@ -148,7 +151,22 @@ def print_data(pages):
             print(line)
             print("____________________________")
 
-def get_price(ticker):
+def get_price():
+    parser()
+    #tinkoff_api()
+    
+
+def parser():
+    site_url = f"https://bcs-express.ru/kotirovki-i-grafiki/{ticker.name}"
+    service = Service(executable_path='C:\Program Files\ChromeDriver\chromedriver.exe')
+    page = webdriver.Chrome(service=service)
+    page.get(site_url)
+    soup_page = bs4.BeautifulSoup(page.page_source, 'html.parser')
+    price = soup_page.find(name = "div", class_ = "gvxn _cou o37l").get_text()
+    ticker.price = float(price.replace(",", "."))
+    print(ticker.price)
+
+def tinkoff_api():
     pass
 
 def analyze_data():
@@ -185,9 +203,9 @@ measure_unit = int()
 #start_time = time.time() #checking how long code executes
 
 filename = get_file(tkr = ticker, url = file_url)
-pages = read_content(filename)
-collect_data(pages, measure_unit)
-get_price(ticker)
+#pages = read_content(filename)
+#collect_data(pages, measure_unit)
+get_price()
 #analyze_data(ticker)
 
 #print(f"--- {time.time() - start_time} seconds ---")
