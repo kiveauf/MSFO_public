@@ -1,5 +1,6 @@
 #script to collect and analyze data from msfo sheets and real stock price
 
+from multiprocessing.connection import wait
 import PyPDF2
 import requests
 import logging
@@ -8,6 +9,7 @@ import bs4
 from requests_html import HTMLSession
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 
 logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
@@ -154,16 +156,15 @@ def print_data(pages):
 def get_price():
     parser()
     #tinkoff_api()
-    
 
-def parser():
+def parser(): #using selenium to get all info because of javascript
     site_url = f"https://bcs-express.ru/kotirovki-i-grafiki/{ticker.name}"
     service = Service(executable_path='C:\Program Files\ChromeDriver\chromedriver.exe')
     page = webdriver.Chrome(service=service)
+    page.implicitly_wait(1) # just to wait until page will load 
     page.get(site_url)
-    soup_page = bs4.BeautifulSoup(page.page_source, 'html.parser')
-    price = soup_page.find(name = "div", class_ = "gvxn _cou o37l").get_text()
-    ticker.price = float(price.replace(",", "."))
+    price_sel = page.find_element(By.CLASS_NAME, 'gvxn._cou.o37l').text
+    ticker.price = float(price_sel.replace(" ", "").replace(",", "."))
     print(ticker.price)
 
 def tinkoff_api():
@@ -194,7 +195,7 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
         ]
 
-file_url = docs[1]
+file_url = docs[0]
 ticker = Ticker()
 filename = str()
 pages = list()
