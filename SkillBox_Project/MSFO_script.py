@@ -20,6 +20,7 @@ class Ticker():
         self.pribyl = 0
         self.viruchka = 0
         self.price = int()
+        self.amount = 0
 
 def get_file(tkr, url): # take url of the file
     file = requests.get(url)
@@ -165,7 +166,11 @@ def parser(): #using selenium to get all info because of javascript
     page.get(site_url)
     price_sel = page.find_element(By.CLASS_NAME, 'gvxn._cou.o37l').text
     ticker.price = float(price_sel.replace(" ", "").replace(",", "."))
+    amount_sel = page.find_elements(By.CLASS_NAME, 'Yai9')
+    ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
     print(ticker.price)
+    print(ticker.amount)
+
 
 def tinkoff_api():
     pass
