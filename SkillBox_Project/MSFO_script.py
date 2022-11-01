@@ -1,6 +1,5 @@
 #script to collect and analyze data from msfo sheets and real stock price
 
-from multiprocessing.connection import wait
 import PyPDF2
 import requests
 import logging
@@ -15,12 +14,15 @@ logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
 
 class Ticker():
-    def _init_(self):
+    def __init__(self):
         self.name = str()
         self.pribyl = 0
         self.viruchka = 0
-        self.price = int()
+        self.price = float()
         self.amount = 0
+        self.capitalization = float()
+        self.pe = float()
+        self.ps = float()
 
 def get_file(tkr, url): # take url of the file
     file = requests.get(url)
@@ -31,11 +33,11 @@ def get_file(tkr, url): # take url of the file
     print("Done")
     return filename
 
-def edit_data(text): #takes whole str doc and return list of str
+def edit_data(text): #takes whole str page and return list of str
     global measure_unit
     clear_text = str()
     stroki = list()
-    if len(check(text)) == 0:
+    if len(check(text)) == 0: #checks if the page is in the list
         return []
     for stroka in text.splitlines():
         if len(stroka.strip()) == 0 or stroka == "\n":
@@ -45,7 +47,7 @@ def edit_data(text): #takes whole str doc and return list of str
             clear_text = edit_whitespaces(clear_text)
             stroki.append(clear_text)
             clear_text = ""
-        clear_text += stroka + " "
+        clear_text += stroka + " " #adding words to one line
         for word in stroka.split():
             if word in ["тыс.", "тыс", "тысячах", "thousands"]:
                 measure_unit = 1000 #measuring unit
@@ -96,7 +98,7 @@ def edit_whitespaces(clear_text): # clearing line of text
            c_t += " "
         elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
            c_t += " "
-    clear_text = c_t #1 whitespace added among numbers and text
+    clear_text = c_t.strip() + clear_text[len(clear_text) - 1] #1 whitespace added among numbers and text
     return clear_text
 
 def check(page): #takes lines of text
@@ -113,6 +115,8 @@ def check(page): #takes lines of text
         for headline in report:
             if " ".join(stroka.split()).count(headline) >= 1:
                 return page
+        if ticker.amount == 0:
+           find_amount(stroka)
     return []
 
 def read_content(filename): #takes file and returns list of string lists
@@ -129,6 +133,7 @@ def read_content(filename): #takes file and returns list of string lists
     return pages
         
 def collect_data(pages, measuring_unit):
+    print("Find necessary data")
     viruchka_list = ["Выручка"]
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода"]
     for line in pages[1]:
@@ -136,11 +141,11 @@ def collect_data(pages, measuring_unit):
             if line.count(name) >= 1 and is_valid(line) == True:
                 viruchka_parts = line.split("  ")[1].split()
                 ticker.viruchka = int("".join(viruchka_parts[1:len(viruchka_parts)])) * measuring_unit
-                print(f"Выручка - {ticker.viruchka}")
+                #print(f"Выручка - {ticker.viruchka}")
         for name in pribyl_list:
             if line.count(name) >= 1 and is_valid(line) == True:
                 ticker.pribyl = int("".join(line.split("  ")[1].split())) * measuring_unit
-                print(f"Прибыль - {ticker.pribyl}")
+                #print(f"Прибыль - {ticker.pribyl}")
 
 def is_valid(line):
     for i in line.strip():
@@ -148,51 +153,67 @@ def is_valid(line):
             return True
     return False
 
-def print_data(pages):
+def print_pages(pages):
     for page in pages:
         for line in page:
             print(line)
             print("____________________________")
+
+def print_data():
+    print(f"Прибыль составила - {ticker.pribyl}")
+    print(f"Выручка составила - {ticker.viruchka}")
+    print(f"p/e - {ticker.pe}")
+    print(f"p/s - {ticker.ps}")
 
 def get_price():
     parser()
     #tinkoff_api()
 
 def parser(): #using selenium to get all info because of javascript
+    print("Getting price and amount of shares")
     site_url = f"https://bcs-express.ru/kotirovki-i-grafiki/{ticker.name}"
     service = Service(executable_path='C:\Program Files\ChromeDriver\chromedriver.exe')
-    page = webdriver.Chrome(service=service)
-    page.implicitly_wait(1) # just to wait until page will load 
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    page = webdriver.Chrome(service=service, options= options)
+    page.implicitly_wait(2) # just to wait until page will load 
     page.get(site_url)
     price_sel = page.find_element(By.CLASS_NAME, 'gvxn._cou.o37l').text
     ticker.price = float(price_sel.replace(" ", "").replace(",", "."))
-    amount_sel = page.find_elements(By.CLASS_NAME, 'Yai9')
-    ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
-    print(ticker.price)
-    print(ticker.amount)
+    #amount_sel = page.find_elements(By.CLASS_NAME, 'Yai9')
+    #ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
 
+def find_amount(line): #find amount of shares
+    global amount_line
+    measure_unit_list = ["в тысячах", "тысяч"]
+    shares_amount_list = ["Средневзвешенное количество выпущенных обыкновенных акций", "Средневзвешенное количество обыкновенных акций",
+                          "Средневзвешенное количество акций"]
+    if is_valid(line) == False:
+        amount_line += line
+    else:
+        amount_line += line
+        for name in shares_amount_list:
+            if amount_line.count(name) >= 1:
+                amount_line = edit_whitespaces(amount_line)
+                for mu in measure_unit_list:
+                    if amount_line.count(mu) >= 1:
+                        print(amount_line)
+                        ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", "")) * 1000
+                        print(ticker.amount)
+                        return True
+                ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", ""))
+                return True
+            amount_line = ""
 
 def tinkoff_api():
     pass
 
 def analyze_data():
-    pass
-
-
-
-#def tab(url):
-#    data = tabula.read_pdf(url, pages = '12', stream = True, guess=False)
-#    print(data)
-#def plumb(url):
-#    pdf = pdfplumber.open(url)
-#    table_setting={
-#    "vertical_strategy": "text",
-#    "horizontal_strategy": "text",
-#    }
-#    print(pdf.pages[12].extract_table(table_setting)) 
-#plumb(url = filename)
-#tab(url = filename)
-#сторонние библиотеки для обработки pdf и таблиц
+    ticker.capitalization = ticker.price * ticker.amount
+    if ticker.pribyl != 0:
+        ticker.pe = ticker.capitalization / ticker.pribyl
+    if ticker.viruchka != 0:
+        ticker.ps = ticker.capitalization / ticker.viruchka
 
 
 docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%BD%D0%B0%D1%8F%20%D1%84%D0%B8%D0%BD%D0%B0%D0%BD%D1%81%D0%BE%D0%B2%D0%B0%D1%8F%20%D0%BE%D1%82%D1%87%D0%B5%D1%82%D0%BD%D0%BE%D1%81%D1%82%D1%8C%20%D1%81%20%D0%90%D0%97_%D0%9C%D0%B0%D0%B3%D0%BD%D0%B8%D1%82_2021%20(%D1%80%D1%83%D1%81%D1%81).pdf",
@@ -200,19 +221,21 @@ docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
         ]
 
-file_url = docs[0]
+file_url = docs[2]
 ticker = Ticker()
 filename = str()
 pages = list()
 measure_unit = int()
+amount_line = str()
 
-#start_time = time.time() #checking how long code executes
+start_time = time.time() #checking how long code executes
 
 filename = get_file(tkr = ticker, url = file_url)
-#pages = read_content(filename)
-#collect_data(pages, measure_unit)
+pages = read_content(filename)
+collect_data(pages, measure_unit)
 get_price()
-#analyze_data(ticker)
+analyze_data()
+print_data()
 
-#print(f"--- {time.time() - start_time} seconds ---")
+print(f"--- {time.time() - start_time} seconds ---")
 
