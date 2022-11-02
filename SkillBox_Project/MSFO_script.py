@@ -56,50 +56,55 @@ def edit_data(text): #takes whole str page and return list of str
     return stroki
 
 def edit_whitespaces(clear_text): # clearing line of text
-    c_t = str()
-    while clear_text.count("  ") != 0:
-        whitespaces = clear_text.find("  ")
-        if (whitespaces - 1 >= 0) and (whitespaces + 2 < len(clear_text)):
-            if clear_text[whitespaces - 1].isdigit() == False and clear_text[whitespaces + 2].isdigit() == False:
-                clear_text = clear_text.replace("  ", " ", 1)
+    if len(clear_text) != 0:
+        c_t = str()
+        while clear_text.count("  ") != 0:
+            whitespaces = clear_text.find("  ")
+            if (whitespaces - 1 >= 0) and (whitespaces + 2 < len(clear_text)):
+                if clear_text[whitespaces - 1].isdigit() == False and clear_text[whitespaces + 2].isdigit() == False:
+                    clear_text = clear_text.replace("  ", " ", 1)
+                else:
+                    break
+            elif (whitespaces == 0) and (whitespaces + 2 < len(clear_text)):
+                if clear_text[whitespaces + 2].isdigit() == False:
+                    clear_text = clear_text.replace("  ", " ", 1)
+                else:
+                    break
+            elif (whitespaces - 1 >= 0) and (whitespaces + 2 == len(clear_text) - 1):
+                if clear_text[whitespaces - 1].isdigit() == False:
+                    clear_text = clear_text.replace("  ", " ", 1)
+                else:
+                    break
             else:
                 break
-        elif (whitespaces == 0) and (whitespaces + 2 < len(clear_text)):
-            if clear_text[whitespaces + 2].isdigit() == False:
-                clear_text = clear_text.replace("  ", " ", 1)
-            else:
-                break
-        elif (whitespaces - 1 >= 0) and (whitespaces + 2 == len(clear_text) - 1):
-            if clear_text[whitespaces - 1].isdigit() == False:
-                clear_text = clear_text.replace("  ", " ", 1)
-            else:
-                break
-        else:
-            break
-    for i in range(len(clear_text) - 1):
-        if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
-           continue
-        if clear_text[i] == " " and clear_text[i+1] == "/" and clear_text[i-1].isalpha() == True:
-           continue
-        if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1].isalpha() == True:
-           continue
-        if clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "/":
-           continue
-        if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1] == "(":
-           continue
-        if clear_text[i] == " " and clear_text[i-1] == "(" and clear_text[i+1].isalpha() == True:
-           continue
-        if clear_text[i] == " " and clear_text[i+1] == ")" and clear_text[i-1].isalpha() == True:
-           continue
-        c_t += clear_text[i]
-        if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isdigit() == True:
-           c_t += " "
-        elif clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1].isdigit() == True:
-           c_t += " "
-        elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
-           c_t += " "
-    clear_text = c_t.strip() + clear_text[len(clear_text) - 1] #1 whitespace added among numbers and text
-    return clear_text
+        for i in range(len(clear_text) - 1):
+            if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
+               continue
+            if clear_text[i] == " " and clear_text[i+1] == "/" and clear_text[i-1].isalpha() == True:
+               continue
+            if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1].isalpha() == True:
+               continue
+            if clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "/":
+               continue
+            if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1] == "(":
+               continue
+            if clear_text[i] == " " and clear_text[i-1] == "(" and clear_text[i+1].isalpha() == True:
+               continue
+            if clear_text[i] == " " and clear_text[i+1] == ")" and clear_text[i-1].isalpha() == True:
+               continue
+            c_t += clear_text[i]
+            if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isdigit() == True:
+               c_t += " "
+            elif clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1].isdigit() == True:
+               c_t += " "
+            elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
+               c_t += " "
+            elif clear_text[i] == " " and clear_text[i-1] == "." and clear_text[i+1].isdigit() == True:
+               c_t += " "
+        clear_text = c_t.strip() + clear_text[len(clear_text) - 1] #1 whitespace added among numbers and text
+        return clear_text
+    else:
+        return ""
 
 def check(page): #takes lines of text
     report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
@@ -188,10 +193,13 @@ def find_amount(line): #find amount of shares
     measure_unit_list = ["в тысячах", "тысяч"]
     shares_amount_list = ["Средневзвешенное количество выпущенных обыкновенных акций", "Средневзвешенное количество обыкновенных акций",
                           "Средневзвешенное количество акций"]
-    if is_valid(line) == False:
+    if line[0].isupper() == True:
+        amount_line = line 
+    if is_valid(line) == False and line[0].isupper() == False:
         amount_line += line
-    else:
+    if is_valid(line) == True and line[0].isupper() == False:
         amount_line += line
+    if is_valid(line) == True:
         for name in shares_amount_list:
             if amount_line.count(name) >= 1:
                 amount_line = edit_whitespaces(amount_line)
@@ -201,9 +209,10 @@ def find_amount(line): #find amount of shares
                         ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", "")) * 1000
                         print(ticker.amount)
                         return True
+                print(amount_line)
                 ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", ""))
+                print(ticker.amount)
                 return True
-            amount_line = ""
 
 def tinkoff_api():
     pass
