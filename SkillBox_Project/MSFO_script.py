@@ -29,7 +29,7 @@ def get_file(tkr, url): # take url of the file
     tkr.name = input("Type ticker: ")
     tkr.name = tkr.name.lower()
     filename = f"{tkr.name}_MSFO.pdf"
-    open(filename,'wb').write(file.content)
+    open(file = filename, mode = 'wb').write(file.content)
     print("Done")
     return filename
 
@@ -51,7 +51,7 @@ def edit_data(text): #takes whole str page and return list of str
         for word in stroka.split():
             if word in ["тыс.", "тыс", "тысячах", "thousands"]:
                 measure_unit = 1000 #measuring unit
-            if word in ["млн.", "млн", "миллионах", "millions"]:
+            if word in ["млн.", "млн", "миллионах", "millions", "Млн"]:
                 measure_unit = 1000000 #measuring unit
     return stroki
 
@@ -111,6 +111,7 @@ def check(page): #takes lines of text
               "Консолидированный отчет о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
               "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированный отчет об изменениях в капитале",
               "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
+              "Консолидированный отчет о прибыли или убытке", "Консолидированный отчет о финансовом положении",
               ]
     oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
     for stroka in page.splitlines():
@@ -135,21 +136,28 @@ def read_content(filename): #takes file and returns list of string lists
         if len(info) != 0 and len(pages) < 4:
             pages.append(info)
     print("Content ready")
+    if len(pages) != 4:
+        print("Есть ошибки прочтения")
+        print(f"Количество страниц - {len(pages)}")
+        return[]
     return pages
         
 def collect_data(pages, measuring_unit):
     print("Find necessary data")
     viruchka_list = ["Выручка"]
-    pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода"]
+    pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
     for line in pages[1]:
+        print(line)
         for name in viruchka_list:
             if line.count(name) >= 1 and is_valid(line) == True:
                 viruchka_parts = line.split("  ")[1].split()
                 ticker.viruchka = int("".join(viruchka_parts[1:len(viruchka_parts)])) * measuring_unit
                 #print(f"Выручка - {ticker.viruchka}")
+                print(line)
         for name in pribyl_list:
             if line.count(name) >= 1 and is_valid(line) == True:
                 ticker.pribyl = int("".join(line.split("  ")[1].split())) * measuring_unit
+                print(line)
                 #print(f"Прибыль - {ticker.pribyl}")
 
 def is_valid(line):
@@ -206,11 +214,11 @@ def find_amount(line): #find amount of shares
                 for mu in measure_unit_list:
                     if amount_line.count(mu) >= 1:
                         print(amount_line)
-                        ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", "")) * 1000
+                        ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", "").replace(",", "")) * 1000
                         print(ticker.amount)
                         return True
                 print(amount_line)
-                ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", ""))
+                ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", "").replace(",", ""))
                 print(ticker.amount)
                 return True
 
@@ -224,13 +232,13 @@ def analyze_data():
     if ticker.viruchka != 0:
         ticker.ps = ticker.capitalization / ticker.viruchka
 
-
 docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%BD%D0%B0%D1%8F%20%D1%84%D0%B8%D0%BD%D0%B0%D0%BD%D1%81%D0%BE%D0%B2%D0%B0%D1%8F%20%D0%BE%D1%82%D1%87%D0%B5%D1%82%D0%BD%D0%BE%D1%81%D1%82%D1%8C%20%D1%81%20%D0%90%D0%97_%D0%9C%D0%B0%D0%B3%D0%BD%D0%B8%D1%82_2021%20(%D1%80%D1%83%D1%81%D1%81).pdf",
         "https://mts.ru/upload/contents/10677/mts_ras_fs_21-r.pdf",
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
+        "https://cdn.phosagro.ru/upload/iblock/ebe/ebe1b9517163a4e5fc22821167c337ec.pdf",
         ]
 
-file_url = docs[2]
+file_url = docs[3]
 ticker = Ticker()
 filename = str()
 pages = list()
@@ -238,13 +246,12 @@ measure_unit = int()
 amount_line = str()
 
 start_time = time.time() #checking how long code executes
-
 filename = get_file(tkr = ticker, url = file_url)
 pages = read_content(filename)
-collect_data(pages, measure_unit)
-get_price()
-analyze_data()
-print_data()
-
+if len(pages) != 0:
+    collect_data(pages, measure_unit)
+    get_price()
+    analyze_data()
+    print_data()
 print(f"--- {time.time() - start_time} seconds ---")
 
