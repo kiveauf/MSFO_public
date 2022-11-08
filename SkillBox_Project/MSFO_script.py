@@ -1,5 +1,6 @@
 #script to collect and analyze data from msfo sheets and real stock price
 
+from string import whitespace
 import PyPDF2
 import requests
 import logging
@@ -56,27 +57,32 @@ def edit_data(text): #takes whole str page and return list of str
     return stroki
 
 def edit_whitespaces(clear_text): # clearing line of text
+    clear_text = clear_text.replace("   ", "  ")
     if len(clear_text) != 0:
         c_t = str()
-        while clear_text.count("  ") != 0:
-            whitespaces = clear_text.find("  ")
+        x = 0
+        whitespaces = 0
+        amount_ws = clear_text.count("  ") + 1
+        while x != amount_ws:
+            x += 1
+            start = whitespaces
+            whitespaces = clear_text.find("  ", start)
             if (whitespaces - 1 >= 0) and (whitespaces + 2 < len(clear_text)):
+                #print(clear_text[0:whitespaces], "!!", clear_text[whitespaces:len(clear_text)])
                 if clear_text[whitespaces - 1].isdigit() == False and clear_text[whitespaces + 2].isdigit() == False:
-                    clear_text = clear_text.replace("  ", " ", 1)
-                else:
-                    break
+                    clear_text = replace_whitespace(clear_text, whitespaces)
+                    continue
+                if is_here_alnum(clear_text[0:whitespaces]) == "alnum" and is_here_alnum(clear_text[whitespaces:len(clear_text)]) == "digit":
+                    clear_text = replace_whitespace(clear_text, whitespaces)
+                    continue
             elif (whitespaces == 0) and (whitespaces + 2 < len(clear_text)):
                 if clear_text[whitespaces + 2].isdigit() == False:
-                    clear_text = clear_text.replace("  ", " ", 1)
-                else:
-                    break
+                    clear_text = replace_whitespace(clear_text, whitespaces)
+                    continue
             elif (whitespaces - 1 >= 0) and (whitespaces + 2 == len(clear_text) - 1):
                 if clear_text[whitespaces - 1].isdigit() == False:
-                    clear_text = clear_text.replace("  ", " ", 1)
-                else:
-                    break
-            else:
-                break
+                    clear_text = replace_whitespace(clear_text, whitespaces)
+                    continue
         for i in range(len(clear_text) - 1):
             if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
                continue
@@ -112,6 +118,8 @@ def check(page): #takes lines of text
               "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированный отчет об изменениях в капитале",
               "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
               "Консолидированный отчет о прибыли или убытке", "Консолидированный отчет о финансовом положении",
+              "Консолидированный Отчет о финансовом положении", "Консолидированный Отчет о прибылях и убытках", "Консолидированный Отчет о совокупном доходе", 
+              "Консолидированный Отчет о движении денежных средств"
               ]
     oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
     for stroka in page.splitlines():
@@ -147,25 +155,48 @@ def collect_data(pages, measuring_unit):
     viruchka_list = ["Выручка"]
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
     for line in pages[1]:
-        print(line)
         for name in viruchka_list:
-            if line.count(name) >= 1 and is_valid(line) == True:
+            if line.count(name) >= 1 and is_here_num(line) == True:
+                print(line)
                 viruchka_parts = line.split("  ")[1].split()
                 ticker.viruchka = int("".join(viruchka_parts[1:len(viruchka_parts)])) * measuring_unit
-                #print(f"Выручка - {ticker.viruchka}")
-                print(line)
+                print(f"Выручка - {ticker.viruchka}")
         for name in pribyl_list:
-            if line.count(name) >= 1 and is_valid(line) == True:
-                ticker.pribyl = int("".join(line.split("  ")[1].split())) * measuring_unit
+            if line.count(name) >= 1 and is_here_num(line) == True:
                 print(line)
+                ticker.pribyl = int("".join(line.split("  ")[1].split())) * measuring_unit
                 #print(f"Прибыль - {ticker.pribyl}")
 
-def is_valid(line):
+def is_here_num(line):
     for i in line.strip():
         if i.isdigit() == True:
             return True
     return False
 
+def is_here_alnum(line):
+    counter = [False, False]
+    for i in line.strip():
+        if i.isdigit() == True:
+            counter[0] = True
+        if i.isalpha() == True:
+            counter[1] = True
+    #print(counter[0], counter[1])
+    if counter[0] == True and counter[1] == True:
+        return "alnum"
+    if counter[0] == True and counter[1] == False:
+        return "digit"
+    if counter[0] == False and counter[1] == True:
+        return "alpha"
+    return "other"
+
+def replace_whitespace(line, index):
+    newline = str()
+    for i in range(len(line)-1):
+        if i == index:
+            continue
+        newline += line[i]
+    return newline
+        
 def print_pages(pages):
     for page in pages:
         for line in page:
@@ -173,8 +204,8 @@ def print_pages(pages):
             print("____________________________")
 
 def print_data():
-    print(f"Прибыль составила - {ticker.pribyl}")
-    print(f"Выручка составила - {ticker.viruchka}")
+    print(f"Прибыль составила - {ticker.pribyl} руб.")
+    print(f"Выручка составила - {ticker.viruchka} руб.")
     print(f"p/e - {ticker.pe}")
     print(f"p/s - {ticker.ps}")
 
@@ -203,23 +234,19 @@ def find_amount(line): #find amount of shares
                           "Средневзвешенное количество акций"]
     if line[0].isupper() == True:
         amount_line = line 
-    if is_valid(line) == False and line[0].isupper() == False:
+    if is_here_num(line) == False and line[0].isupper() == False:
         amount_line += line
-    if is_valid(line) == True and line[0].isupper() == False:
+    if is_here_num(line) == True and line[0].isupper() == False:
         amount_line += line
-    if is_valid(line) == True:
+    if is_here_num(line) == True:
         for name in shares_amount_list:
             if amount_line.count(name) >= 1:
                 amount_line = edit_whitespaces(amount_line)
                 for mu in measure_unit_list:
                     if amount_line.count(mu) >= 1:
-                        print(amount_line)
                         ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", "").replace(",", "")) * 1000
-                        print(ticker.amount)
                         return True
-                print(amount_line)
                 ticker.amount = float(amount_line.strip().split("  ")[1].replace(" ", "").replace(",", ""))
-                print(ticker.amount)
                 return True
 
 def tinkoff_api():
@@ -235,10 +262,11 @@ def analyze_data():
 docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%BD%D0%B0%D1%8F%20%D1%84%D0%B8%D0%BD%D0%B0%D0%BD%D1%81%D0%BE%D0%B2%D0%B0%D1%8F%20%D0%BE%D1%82%D1%87%D0%B5%D1%82%D0%BD%D0%BE%D1%81%D1%82%D1%8C%20%D1%81%20%D0%90%D0%97_%D0%9C%D0%B0%D0%B3%D0%BD%D0%B8%D1%82_2021%20(%D1%80%D1%83%D1%81%D1%81).pdf",
         "https://mts.ru/upload/contents/10677/mts_ras_fs_21-r.pdf",
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
-        "https://cdn.phosagro.ru/upload/iblock/ebe/ebe1b9517163a4e5fc22821167c337ec.pdf",
+        "https://lukoil.ru/FileSystem/9/577502.pdf",
+        "http://www.rushydro.ru/upload/iblock/89e/IFRS-RusHydro_2112_rrus.pdf"
         ]
 
-file_url = docs[3]
+file_url = docs[4]
 ticker = Ticker()
 filename = str()
 pages = list()
