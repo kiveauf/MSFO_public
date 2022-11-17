@@ -1,6 +1,5 @@
 #script to collect and analyze data from msfo sheets and real stock price
 
-from string import whitespace
 import PyPDF2
 import requests
 import logging
@@ -15,7 +14,8 @@ logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
 
 class Ticker():
-    def __init__(self):
+    def __init__(self, url = ""):
+        self.url = url
         self.name = str()
         self.pribyl = 0
         self.viruchka = 0
@@ -25,8 +25,8 @@ class Ticker():
         self.pe = float()
         self.ps = float()
 
-def get_file(tkr, url): # take url of the file
-    file = requests.get(url)
+def get_file(tkr): # take url of the file
+    file = requests.get(tkr.url)
     tkr.name = input("Type ticker: ")
     tkr.name = tkr.name.lower()
     filename = f"{tkr.name}_MSFO.pdf"
@@ -94,7 +94,6 @@ def edit_whitespaces(clear_text): #clearing line of text
     if len(clear_text) != 0:
         c_t = str()
         x = 0
-        y = 0
         start = 0
         amount_ws = clear_text.count("  ") + 1
         while x != amount_ws:
@@ -105,10 +104,6 @@ def edit_whitespaces(clear_text): #clearing line of text
                 if clear_text[whitespaces - 1].isdigit() == False and clear_text[whitespaces + 2].isdigit() == False:
                     clear_text = replace_whitespace(clear_text, whitespaces)
                     continue
-                #if is_here_alnum(clear_text[0:whitespaces]) == "alnum" and is_here_alnum(clear_text[whitespaces:len(clear_text)]) == "digit" and notes == True:
-                #    clear_text = replace_whitespace(clear_text, whitespaces)
-                #    y = 1
-                #    continue
             elif (whitespaces == 0) and (whitespaces + 2 < len(clear_text)):
                 if clear_text[whitespaces + 2].isdigit() == False:
                     clear_text = replace_whitespace(clear_text, whitespaces)
@@ -292,27 +287,37 @@ def analyze_data(): #just do the math
     if ticker.viruchka != 0:
         ticker.ps = ticker.capitalization / ticker.viruchka
 
-docs = ["https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%BD%D0%B0%D1%8F%20%D1%84%D0%B8%D0%BD%D0%B0%D0%BD%D1%81%D0%BE%D0%B2%D0%B0%D1%8F%20%D0%BE%D1%82%D1%87%D0%B5%D1%82%D0%BD%D0%BE%D1%81%D1%82%D1%8C%20%D1%81%20%D0%90%D0%97_%D0%9C%D0%B0%D0%B3%D0%BD%D0%B8%D1%82_2021%20(%D1%80%D1%83%D1%81%D1%81).pdf",
+def timetrack(func):
+    def count_time(arg):
+        start_time = time.time() #checking how long code executes
+        func(arg)
+        print(f"--- {time.time() - start_time} seconds ---")
+    return count_time
+
+@timetrack
+def run(url):
+    ticker.url = url
+    filename = get_file(tkr = ticker)
+    pages = read_content(filename)
+    collect_data(pages, measure_unit)
+    get_price()
+    analyze_data()
+    print_data()
+
+docs = [
+        "https://www.magnit.com/upload/iblock/4e4/%D0%905.12_%D0%9F%D0%BE%D0%B4%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%BD%D0%B0%D1%8F%20%D1%84%D0%B8%D0%BD%D0%B0%D0%BD%D1%81%D0%BE%D0%B2%D0%B0%D1%8F%20%D0%BE%D1%82%D1%87%D0%B5%D1%82%D0%BD%D0%BE%D1%81%D1%82%D1%8C%20%D1%81%20%D0%90%D0%97_%D0%9C%D0%B0%D0%B3%D0%BD%D0%B8%D1%82_2021%20(%D1%80%D1%83%D1%81%D1%81).pdf",
         "https://mts.ru/upload/contents/10677/mts_ras_fs_21-r.pdf",
         "https://acdn.tinkoff.ru/static/documents/223e5d7f-6d12-429f-aae1-a25b154ea3e2.pdf",
         "https://lukoil.ru/FileSystem/9/577502.pdf",
         "http://www.rushydro.ru/upload/iblock/89e/IFRS-RusHydro_2112_rrus.pdf"
         ]
 
-file_url = docs[4]
-ticker = Ticker()
-filename = str()
-pages = list()
-measure_unit = int()
-amount_line = str()
-
-start_time = time.time() #checking how long code executes
-filename = get_file(tkr = ticker, url = file_url)
-pages = read_content(filename)
-if len(pages) != 0:
-    collect_data(pages, measure_unit)
-    get_price()
-    analyze_data()
-    print_data()
-print(f"--- {time.time() - start_time} seconds ---")
+if __name__ == "__main__":
+    ticker = Ticker()
+    filename = str()
+    pages = list()
+    measure_unit = int()
+    amount_line = str()
+    run(docs[0])
+    
 
