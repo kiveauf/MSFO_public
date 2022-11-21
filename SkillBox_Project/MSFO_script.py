@@ -44,6 +44,7 @@ def read_content(filename): #takes file and returns list of string lists
         info = edit_data(text = info) #info now is list
         if len(info) != 0 and len(pages) < 4:
             pages.append(info)
+    _pdf.close()
     #print("Content ready")
     if len(pages) != 4:
         print("Есть ошибки прочтения")
