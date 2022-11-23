@@ -9,7 +9,11 @@ from requests_html import HTMLSession
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+import os
+from tinkoff.invest import Client
+from dotenv import load_dotenv
 
+load_dotenv() 
 logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
 
@@ -220,14 +224,17 @@ def print_pages(pages):
             print("____________________________")
 
 def print_data():
+    print(f"Цена составила - {ticker.price} руб.")
     print(f"Прибыль составила - {ticker.pribyl} руб.")
     print(f"Выручка составила - {ticker.viruchka} руб.")
     print(f"p/e - {ticker.pe}")
     print(f"p/s - {ticker.ps}")
 
-def get_price():
-    parser()
-    #tinkoff_api()
+def get_price(method):
+    if method == "p":
+        parser()
+    if method == "t":
+        tinkoff_api()
 
 def parser(): #using selenium to get all info because of javascript
     #print("Getting price and amount of shares")
@@ -238,7 +245,7 @@ def parser(): #using selenium to get all info because of javascript
     page = webdriver.Chrome(service=service, options= options)
     page.implicitly_wait(2) # just to wait until page will load 
     page.get(site_url)
-    price_sel = page.find_element(By.CLASS_NAME, 'gvxn._cou.o37l').text
+    price_sel = page.find_element(By.CLASS_NAME, 'Here.EWHp.Dlhk').text
     ticker.price = float(price_sel.replace(" ", "").replace(",", "."))
     page.quit()
     #amount_sel = page.find_elements(By.CLASS_NAME, 'Yai9')
@@ -280,7 +287,21 @@ def find_amount(text): #find amount of shares
                         return True
 
 def tinkoff_api():
-    pass
+    ticker_data = str()
+    ticker_price_quotation = str()
+    ticker_price_response = str()
+    token = os.environ["TOKEN"]
+    with Client(token) as client:
+        ticker_data = client.instruments.find_instrument(query = ticker.name).instruments
+        #print(ticker_data)
+        for i in ticker_data:
+            if i.ticker.lower() == ticker.name:
+                ticker_data_choice = i
+        ticker_price_response = client.market_data.get_last_prices(figi = [ticker_data_choice.figi])
+        ticker_price_quotation = ticker_price_response.last_prices[0].price
+        ticker.price = float(str(ticker_price_quotation.units) + "." + str(ticker_price_quotation.nano))
+        #print(ticker_price)
+
 
 def analyze_data(): #just do the math
     ticker.capitalization = ticker.price * ticker.amount
@@ -298,12 +319,12 @@ def timetrack(func):
     return count_time
 
 @timetrack
-def run(url, name):#just run the program
+def run(url, name, method):#just run the program
     ticker.url = url
     filename = get_file(tkr = ticker, name = name)
     pages = read_content(filename)
     collect_data(pages, measure_unit)
-    get_price()
+    get_price(method)
     analyze_data()
     print_data()
     return (len(pages), ticker.pe, ticker.ps)
@@ -322,9 +343,10 @@ filename = str()
 pages = list()
 measure_unit = int()
 amount_line = str()
+method = "t"
 
 if __name__ == "__main__":
     name = input("Type ticker name: ")
-    run(docs[1], name)
+    run(docs[4], name, method)
     
 
