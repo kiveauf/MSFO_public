@@ -4,6 +4,7 @@ use python 3.9
 """
 
 import PyPDF2
+import pandas
 import requests
 import logging
 import time
@@ -12,10 +13,12 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 import os
 from tinkoff.invest import Client
+import mysql.connector as sql
+import getpass
 from dotenv import load_dotenv
 from DocsTest import docs
                                              
-load_dotenv() 
+load_dotenv() #using this to get enviroment custom-made constant
 logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
 
@@ -304,6 +307,35 @@ def tinkoff_api():
         ticker.price = float(str(ticker_price_quotation.units) + "." + str(ticker_price_quotation.nano))
         #print(ticker_price)
 
+def write_db():
+    try:
+        with sql.connect(host="127.0.0.1", user = "Kirill", #input("Type user name: "), 
+                         password = "password", #getpass.getpass("Type password: "), 
+                         database = "fm") as connection:
+            query_select =  "SELECT * from fm_table"
+            query_insert = "INSERT INTO fm_table (ticker, revenue, income, pe, ps, amount, price, cap) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+            with connection.cursor() as cursor:
+                #to see columns
+                cursor.execute("desc fm_table")
+                print_db([column[0] for column in cursor.fetchall()])   
+                #to add data
+                data = (ticker.name, ticker.viruchka, ticker.pribyl, ticker.pe,
+                       ticker.ps, ticker.amount, ticker.price, ticker.capitalization)
+                cursor.execute(query_insert, data)
+                connection.commit()
+                #to print all lines
+                cursor.execute(query_select)
+                result = cursor.fetchall()
+                for line in result:
+                    print_db(line)
+    except sql.Error as e:
+        print(e)
+
+def print_db(line):
+    for i in line:
+        print(f'{i:<18}',end = "")
+    print(end="\n")
+
 
 def analyze_data(): #just do the math
     ticker.capitalization = ticker.price * ticker.amount
@@ -328,6 +360,7 @@ def run(url, name, method):#just run the program
     collect_data(pages, measure_unit)
     get_price(method)
     analyze_data()
+    write_db()
     print_data()
     return (len(pages), ticker.pe, ticker.ps)
 
