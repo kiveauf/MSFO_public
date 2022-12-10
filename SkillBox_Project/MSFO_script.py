@@ -4,7 +4,6 @@ use python 3.9
 """
 
 import PyPDF2
-import pandas
 import requests
 import logging
 import time
@@ -17,6 +16,8 @@ import mysql.connector as sql
 import getpass
 from dotenv import load_dotenv
 from DocsTest import docs
+import asyncio
+import aiohttp
                                              
 load_dotenv() #using this to get enviroment custom-made constant
 logger = logging.getLogger("PyPDF2")
@@ -33,6 +34,25 @@ class Ticker():
         self.capitalization = float()
         self.pe = float()
         self.ps = float()
+        self.i = 0
+
+    def __iter__(self):
+        self.i = 0
+        return self
+
+    def __next__(self):
+        self.i += 1
+        if self.i == 1:
+            return f"Цена составила - {ticker.price} руб."
+        if self.i == 2:
+            return f"Прибыль составила - {ticker.pribyl} руб."
+        if self.i == 3:
+            return f"Выручка составила - {ticker.viruchka} руб."
+        if self.i == 4:
+            return f"p/e - {ticker.pe}"
+        if self.i == 5:
+            return f"p/s - {ticker.ps}"
+        raise StopIteration()
 
 def get_file(tkr, name): # take url of the file
     file = requests.get(tkr.url)
@@ -45,21 +65,21 @@ def get_file(tkr, name): # take url of the file
 
 def read_content(filename): #takes file and returns list of string lists
     #print("Reading content")
-    _pdf = open(filename, 'rb')
-    pdf_file = PyPDF2.PdfFileReader(_pdf, strict=False)
-    page_dohod = pdf_file.pages
-    for page in page_dohod:
-        info = page.extract_text()
-        info = edit_data(text = info) #info now is list
-        if len(info) != 0 and len(pages) < 4:
-            pages.append(info)
-    _pdf.close()
+    content_pages = list()
+    with open(filename, 'rb') as f:
+        pdf_file = PyPDF2.PdfFileReader(f, strict=False)
+        page_dohod = pdf_file.pages
+        for page in page_dohod:
+            info = page.extract_text() #just strings
+            info = edit_data(text = info) #info now is list
+            if len(info) != 0 and len(content_pages) < 4:
+                content_pages.append(info)
     #print("Content ready")
-    if len(pages) != 4:
+    if len(content_pages) != 4:
         print("Есть ошибки прочтения")
         print(f"Количество страниц - {len(pages)}")
         return[]
-    return pages
+    return content_pages
 
 def edit_data(text): #takes whole str page and return list of str
     clear_text = str()
@@ -229,11 +249,8 @@ def print_pages(pages):
             print("____________________________")
 
 def print_data():
-    print(f"Цена составила - {ticker.price} руб.")
-    print(f"Прибыль составила - {ticker.pribyl} руб.")
-    print(f"Выручка составила - {ticker.viruchka} руб.")
-    print(f"p/e - {ticker.pe}")
-    print(f"p/s - {ticker.ps}")
+    for i in ticker:
+        print(i)
 
 def get_price(method):
     if method == "p":
@@ -308,34 +325,34 @@ def tinkoff_api():
         #print(ticker_price)
 
 def write_db():
-    try:
-        with sql.connect(host="127.0.0.1", user = "Kirill", #input("Type user name: "), 
-                         password = "password", #getpass.getpass("Type password: "), 
-                         database = "fm") as connection:
-            query_select =  "SELECT * from fm_table"
-            query_insert = "INSERT INTO fm_table (ticker, revenue, income, pe, ps, amount, price, cap) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-            with connection.cursor() as cursor:
-                #to see columns
-                cursor.execute("desc fm_table")
-                print_db([column[0] for column in cursor.fetchall()])   
-                #to add data
-                data = (ticker.name, ticker.viruchka, ticker.pribyl, ticker.pe,
-                       ticker.ps, ticker.amount, ticker.price, ticker.capitalization)
-                cursor.execute(query_insert, data)
-                connection.commit()
-                #to print all lines
-                cursor.execute(query_select)
-                result = cursor.fetchall()
-                for line in result:
-                    print_db(line)
-    except sql.Error as e:
-        print(e)
+    if ticker.pe != 0 and ticker.ps != 0:
+        try:
+            with sql.connect(host="127.0.0.1", user = "Kirill", #input("Type user name: "), 
+                             password = "password", #getpass.getpass("Type password: "), 
+                             database = "fm") as connection:
+                query_select =  "SELECT * from fm_table"
+                query_insert = "INSERT INTO fm_table (ticker, revenue, income, pe, ps, amount, price, cap) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                with connection.cursor() as cursor:
+                    #to see columns
+                    cursor.execute("desc fm_table")
+                    print_db([column[0] for column in cursor.fetchall()])   
+                    #to add data
+                    data = (ticker.name, ticker.viruchka, ticker.pribyl, ticker.pe,
+                           ticker.ps, ticker.amount, ticker.price, ticker.capitalization)
+                    cursor.execute(query_insert, data)
+                    connection.commit()
+                    #to print all lines
+                    cursor.execute(query_select)
+                    result = cursor.fetchall()
+                    for line in result:
+                        print_db(line)
+        except sql.Error as e:
+            print(e)
 
 def print_db(line):
     for i in line:
         print(f'{i:<18}',end = "")
     print(end="\n")
-
 
 def analyze_data(): #just do the math
     ticker.capitalization = ticker.price * ticker.amount
@@ -360,7 +377,7 @@ def run(url, name, method):#just run the program
     collect_data(pages, measure_unit)
     get_price(method)
     analyze_data()
-    write_db()
+    #write_db()
     print_data()
     return (len(pages), ticker.pe, ticker.ps)
 
@@ -372,7 +389,7 @@ amount_line = str()
 method = "t"
 
 if __name__ == "__main__":
-    name = input("Type ticker name: ")
+    name = "hydr"#input("Type ticker name: ")
     run(docs[4], name, method)
     
 
