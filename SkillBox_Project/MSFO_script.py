@@ -124,7 +124,6 @@ def edit_whitespaces(clear_text): #clearing line of text
     print(clear_text)
     whitespace_list = list()
     c_t = str()
-    #clear_text = clear_text.replace("   ", "  ")
     if len(clear_text) != 0:
         clear_text = clear_text.strip()
         amount_whitespaces = clear_text.count(" ")
