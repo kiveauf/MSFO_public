@@ -63,17 +63,17 @@ def get_file(tkr, name): # take url of the file
     #print("Done")
     return filename
 
-def read_content(filename): #takes file and returns list of string lists
+def read_content(filename): #takes file and returns dict
     #print("Reading content")
-    content_pages = list()
+    content_pages = dict()
     with open(filename, 'rb') as f:
         pdf_file = PyPDF2.PdfFileReader(f, strict=False)
         page_dohod = pdf_file.pages
         for page in page_dohod:
             info = page.extract_text() #just strings
-            info = edit_data(text = info) #info now is list
+            info = edit_data(text = info) #info now is tuple (info, data x-year, data y-year)
             if len(info) != 0 and len(content_pages) < 4:
-                content_pages.append(info)
+                content_pages.setdefault(info[0],(info[1], info[2]))
     #print("Content ready")
     if len(content_pages) != 4:
         print("Есть ошибки прочтения")
@@ -83,10 +83,10 @@ def read_content(filename): #takes file and returns list of string lists
 
 def edit_data(text): #takes whole str page and return list of str
     clear_text = str()
-    stroki = list()
+    stroki = dict()
     if ticker.amount == 0:
            find_amount(text)
-    if len(check(text)) == 0: #checks if the page is in the list
+    if check(text) == False: #checks if the page is in the list
         return []
     for stroka in text.splitlines():
         if len(stroka.strip()) == 0 or stroka == "\n":
@@ -94,7 +94,8 @@ def edit_data(text): #takes whole str page and return list of str
             continue
         if stroka[0].isupper() == True:
             clear_text = edit_whitespaces(clear_text)
-            stroki.append(clear_text)
+            stroki = clear_text
+            print(stroki)
             clear_text = ""
         clear_text += stroka + " " #adding words to one line
         know_measure(stroka)
@@ -113,63 +114,116 @@ def check(page): #takes lines of text
     for stroka in page.splitlines():
         for line in oglavlenie:
             if " ".join(stroka.split()).count(line) >= 1:
-                return []
+                return False
         for headline in report:
             if " ".join(stroka.split()).count(headline) >= 1:
-                return page
-    return []
+                return True
+    return False
 
 def edit_whitespaces(clear_text): #clearing line of text
-    clear_text = clear_text.replace("   ", "  ")
+    print(clear_text)
+    whitespace_list = list()
+    c_t = str()
+    #clear_text = clear_text.replace("   ", "  ")
     if len(clear_text) != 0:
-        c_t = str()
-        x = 0
+        clear_text = clear_text.strip()
+        amount_whitespaces = clear_text.count(" ")
         start = 0
-        amount_ws = clear_text.count("  ") + 1
-        while x != amount_ws:
+        x = 0
+        while x != amount_whitespaces:
+            whitespace = clear_text.find(" ", start)
+            #print(whitespace)
+            start = whitespace + 1
             x += 1
-            whitespaces = clear_text.find("  ", start)
-            start = whitespaces
-            if (whitespaces - 1 >= 0) and (whitespaces + 2 < len(clear_text)):
-                if clear_text[whitespaces - 1].isdigit() == False and clear_text[whitespaces + 2].isdigit() == False:
-                    clear_text = replace_whitespace(clear_text, whitespaces)
-                    continue
-            elif (whitespaces == 0) and (whitespaces + 2 < len(clear_text)):
-                if clear_text[whitespaces + 2].isdigit() == False:
-                    clear_text = replace_whitespace(clear_text, whitespaces)
-                    continue
-            elif (whitespaces - 1 >= 0) and (whitespaces + 2 == len(clear_text) - 1):
-                if clear_text[whitespaces - 1].isdigit() == False:
-                    clear_text = replace_whitespace(clear_text, whitespaces)
-                    continue
-        for i in range(len(clear_text) - 1):
-            if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
-               continue
-            if clear_text[i] == " " and clear_text[i+1] == "/" and clear_text[i-1].isalpha() == True:
-               continue
-            if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1].isalpha() == True:
-               continue
-            if clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "/":
-               continue
-            if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1] == "(":
-               continue
-            if clear_text[i] == " " and clear_text[i-1] == "(" and clear_text[i+1].isalpha() == True:
-               continue
-            if clear_text[i] == " " and clear_text[i+1] == ")" and clear_text[i-1].isalpha() == True:
-               continue
-            c_t += clear_text[i]
-            if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isdigit() == True:
-               c_t += " "
-            elif clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1].isdigit() == True and is_here_alnum(clear_text[i:len(clear_text)]) == "digit":
-               c_t += " "
-            elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
-               c_t += " "
-            elif clear_text[i] == " " and clear_text[i-1] == "." and clear_text[i+1].isdigit() == True:
-               c_t += " "
-            elif clear_text[i] == " " and clear_text[i-1] == ")" and is_here_alnum(clear_text[i:len(clear_text)]) == "digit" and clear_text[i+1] != " ":
-               c_t += " "
-        clear_text = c_t.strip() + clear_text[len(clear_text) - 1] #1 whitespace added among numbers and text
-        return clear_text
+            if clear_text[whitespace - 1].isdigit() == False and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == False:
+                whitespace_list.append(whitespace)
+                continue
+            #if clear_text[whitespace - 1].isdigit() == True and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == False:
+            #    whitespace_list.append(whitespace)
+            #    continue
+            #if clear_text[whitespace - 1].isdigit() == True and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
+            #    whitespace_list.append(whitespace)
+            #    continue
+        clear_text = replace_whitespace(clear_text, whitespace_list)
+        #for i in range(len(clear_text) - 1):
+        #    if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i+1] == "/" and clear_text[i-1].isalpha() == True:
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1].isalpha() == True:
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "/":
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1] == "(":
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == "(" and clear_text[i+1].isalpha() == True:
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i+1] == ")" and clear_text[i-1].isalpha() == True:
+        #       continue
+        #    c_t += clear_text[i]
+        #    if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isdigit() == True:
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1].isdigit() == True and is_here_alnum(clear_text[i:len(clear_text)]) == "digit":
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1] == "." and clear_text[i+1].isdigit() == True:
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1] == ")" and is_here_alnum(clear_text[i:len(clear_text)]) == "digit" and clear_text[i+1] != " ":
+        #       c_t += " "
+        #clear_text = c_t.strip() + clear_text[len(clear_text) - 1] #1 whitespace added among numbers and text
+        #while x != amount_ws:
+        #    x += 1
+        #    whitespaces = clear_text.find("  ", start)
+        #    start = whitespaces #index of the first whitespace
+        #    if (whitespaces - 1 >= 0) and (whitespaces + 2 < len(clear_text)): #if whitespace isn't first and third from the end
+        #        if clear_text[whitespaces - 1].isdigit() == False and clear_text[whitespaces + 2].isdigit() == False:
+        #            clear_text = replace_whitespace(clear_text, whitespaces)
+        #            continue
+        #    elif (whitespaces == 0) and (whitespaces + 2 < len(clear_text)): #if whitespace isn't first and third from the end
+        #        if clear_text[whitespaces + 2].isdigit() == False:
+        #            clear_text = replace_whitespace(clear_text, whitespaces)
+        #            continue
+        #    elif (whitespaces - 1 >= 0) and (whitespaces + 2 == len(clear_text) - 1): #if whitespace isn't first and third from the end
+        #        if clear_text[whitespaces - 1].isdigit() == False:
+        #            clear_text = replace_whitespace(clear_text, whitespaces)
+        #            continue
+        #for i in range(len(clear_text) - 1):
+        #    if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i+1] == "/" and clear_text[i-1].isalpha() == True:
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1].isalpha() == True:
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "/":
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == "/" and clear_text[i+1] == "(":
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i-1] == "(" and clear_text[i+1].isalpha() == True:
+        #       continue
+        #    if clear_text[i] == " " and clear_text[i+1] == ")" and clear_text[i-1].isalpha() == True:
+        #       continue
+        #    c_t += clear_text[i]
+        #    if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == "(" and clear_text[i+2].isdigit() == True:
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1].isdigit() == True and is_here_alnum(clear_text[i:len(clear_text)]) == "digit":
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1] == ")" and clear_text[i+1] == "(":
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1] == "." and clear_text[i+1].isdigit() == True:
+        #       c_t += " "
+        #    elif clear_text[i] == " " and clear_text[i-1] == ")" and is_here_alnum(clear_text[i:len(clear_text)]) == "digit" and clear_text[i+1] != " ":
+        #       c_t += " "
+        #clear_text = c_t.strip() + clear_text[len(clear_text) - 1] #1 whitespace added among numbers and text
+        parts = clear_text.rsplit("  ", maxsplit = 2)
+        #print(parts)
+        if len(parts) == 3:
+            part1 = parts[0].rsplit(" ", 1)[0] #text part of line
+            part2 = parts[1]
+            part3 = parts[2]
+            return (part1, part2, part3) 
+        else: 
+            return (parts[0],"","")
     else:
         return ""
 
@@ -220,13 +274,13 @@ def edit_line(line): # do some editing with line containing viruchku
     viruchka_parts = viruchka_parts[space:len(viruchka_parts)].strip()
     return viruchka_parts
 
-def replace_whitespace(line, index): #remove one whitespace from double whitespaces
-    newline = str()
-    for i in range(len(line)-1):
-        if i == index:
-            continue
-        newline += line[i]
-    return newline
+def replace_whitespace(line, index_list): #remove one whitespace from double whitespaces
+    patch = list(line)
+    counter = 0
+    for i in index_list:
+        patch.pop(i - counter)
+        counter += 1
+    return "".join(patch)
 
 def know_notes(line): #checks if there notes
     notes_list = ["Примечание", "Поясн", "Прим"]
@@ -274,11 +328,11 @@ def parser(): #using selenium to get all info because of javascript
     #ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
 
 def find_amount(text): #find amount of shares
-    global amount_line
+    amount_line = str()
     measure_unit_thousands_list = ["в тысячах", "тысяч"]
     measure_unit_mil_list = ["в млн", "млн"]
     shares_amount_list = ["Средневзвешенное количество выпущенных обыкновенных акций", "Средневзвешенное количество обыкновенных акций",
-                          "Средневзвешенное количество акций", "Средневзвешенное количество акций"]
+                          "Средневзвешенное количество акций"]
     for line in text.splitlines():
         line = line.strip()
         #print(line)
@@ -385,7 +439,6 @@ ticker = Ticker()
 filename = str()
 pages = list()
 measure_unit = int()
-amount_line = str()
 method = "t"
 
 if __name__ == "__main__":
