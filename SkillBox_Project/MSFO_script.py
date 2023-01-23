@@ -13,11 +13,11 @@ from selenium.webdriver.common.by import By
 import os
 from tinkoff.invest import Client
 import mysql.connector as sql
-import getpass
 from dotenv import load_dotenv
 from DocsTest import docs
-import asyncio
-import aiohttp
+#import asyncio
+#import aiohttp
+#import getpass
                                              
 load_dotenv() #using this to get enviroment custom-made constant
 logger = logging.getLogger("PyPDF2")
@@ -63,7 +63,7 @@ def get_file(tkr, name): # take url of the file
     #print("Done")
     return filename
 
-def read_content(filename): #takes file and returns dict
+def read_content(filename): #takes file and returns dict (info : (data x-year, data y-year))
     #print("Reading content")
     content_pages = dict()
     with open(filename, 'rb') as f:
@@ -95,7 +95,7 @@ def edit_data(text): #takes whole str page and return list of str
         if stroka[0].isupper() == True:
             clear_text = edit_whitespaces(clear_text)
             stroki = clear_text
-            print(stroki)
+            #print(stroki)
             clear_text = ""
         clear_text += stroka + " " #adding words to one line
         know_measure(stroka)
@@ -123,7 +123,7 @@ def check(page): #takes lines of text
 def edit_whitespaces(clear_text): #clearing line of text
     print(clear_text)
     whitespace_list = list()
-    c_t = str()
+    c_t = str()  #TODO
     if len(clear_text) != 0:
         clear_text = clear_text.strip()
         amount_whitespaces = clear_text.count(" ")
@@ -230,20 +230,17 @@ def collect_data(pages, measuring_unit): #reads the page and finds needed params
     #print("Find necessary data")
     viruchka_list = ["Выручка"]
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
-    for line in pages[1]:
-        #notes = know_notes(line)
-        for name in viruchka_list:
-            if line.count(name) >= 1 and is_here_num(line) == True:
-                #print(line)
-                viruchka_line = edit_line(line).split("  ")[0]
-                viruchka = "".join(viruchka_line.split())
-                ticker.viruchka = int(viruchka) * measuring_unit
-                #print(f"Выручка - {ticker.viruchka}")
-        for name in pribyl_list:
-            if line.count(name) >= 1 and is_here_num(line) == True:
-                #print(line)
-                ticker.pribyl = int("".join(line.split("  ")[1].split())) * measuring_unit
-                #print(f"Прибыль - {ticker.pribyl}")
+    for name in viruchka_list:
+        if pages.get(name, None) != None:    
+            viruchka_line = pages[name][0]
+            viruchka = "".join(viruchka_line.split())
+            ticker.viruchka = int(viruchka) * measuring_unit
+            #print(f"Выручка - {ticker.viruchka}")
+    for name in pribyl_list:
+        if pages.get(name, None) != None:  
+            pribyl_line = pages[name][0]
+            ticker.pribyl = int("".join(pribyl_line.split())) * measuring_unit
+            #print(f"Прибыль - {ticker.pribyl}")
 
 def is_here_num(line): #if line contains number
     for i in line.strip():
@@ -267,11 +264,11 @@ def is_here_alnum(line): #tells what line contains
         return "alpha"
     return "other"
 
-def edit_line(line): # do some editing with line containing viruchku
-    viruchka_parts = line.partition("  ")[2].strip()
-    space = viruchka_parts.find(" ")
-    viruchka_parts = viruchka_parts[space:len(viruchka_parts)].strip()
-    return viruchka_parts
+#def edit_line(line): # do some editing with line containing viruchku
+#    viruchka_parts = line.partition("  ")[2].strip()
+#    space = viruchka_parts.find(" ")
+#    viruchka_parts = viruchka_parts[space:len(viruchka_parts)].strip()
+#    return viruchka_parts
 
 def replace_whitespace(line, index_list): #remove one whitespace from double whitespaces
     patch = list(line)
@@ -326,7 +323,7 @@ def parser(): #using selenium to get all info because of javascript
     #amount_sel = page.find_elements(By.CLASS_NAME, 'Yai9')
     #ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
 
-def find_amount(text): #find amount of shares
+def find_amount(text): #find amount of shares  #TODOOOOO
     amount_line = str()
     measure_unit_thousands_list = ["в тысячах", "тысяч"]
     measure_unit_mil_list = ["в млн", "млн"]
