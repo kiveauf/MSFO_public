@@ -63,25 +63,27 @@ def get_file(tkr, name): # take url of the file
     #print("Done")
     return filename
 
-def read_content(filename): #takes file and returns dict (info : (data x-year, data y-year))
+def read_content(filename): #takes file and returns dict.
     #print("Reading content")
-    content_pages = dict()
+    content_pages = list()
     with open(filename, 'rb') as f:
         pdf_file = PyPDF2.PdfFileReader(f, strict=False)
         page_dohod = pdf_file.pages
         for page in page_dohod:
             info = page.extract_text() #just strings
-            info = edit_data(text = info) #info now is tuple (info, data x-year, data y-year)
+            info = edit_data(text = info) #now it is dict {info : (data x-year, data y-year)}
             if len(info) != 0 and len(content_pages) < 4:
-                content_pages.setdefault(info[0],(info[1], info[2]))
+                content_pages.append(info)
     #print("Content ready")
     if len(content_pages) != 4:
         print("Есть ошибки прочтения")
         print(f"Количество страниц - {len(pages)}")
         return[]
+    print(len(content_pages))
+    content_pages = {**content_pages[0], **content_pages[1], **content_pages[2], **content_pages[3]} 
     return content_pages
 
-def edit_data(text): #takes whole str page and return list of str
+def edit_data(text): #takes whole str page and return tuple
     clear_text = str()
     stroki = dict()
     if ticker.amount == 0:
@@ -93,9 +95,9 @@ def edit_data(text): #takes whole str page and return list of str
             stroka = stroka.strip(" \n")
             continue
         if stroka[0].isupper() == True:
-            clear_text = edit_whitespaces(clear_text)
-            stroki = clear_text
-            #print(stroki)
+            clear_text = edit_whitespaces(clear_text) #now is tuple (info, data x-year, data y-year)
+            print(clear_text)
+            stroki.setdefault(clear_text[0],(clear_text[1],clear_text[2]))
             clear_text = ""
         clear_text += stroka + " " #adding words to one line
         know_measure(stroka)
@@ -120,7 +122,7 @@ def check(page): #takes lines of text
                 return True
     return False
 
-def edit_whitespaces(clear_text): #clearing line of text
+def edit_whitespaces(clear_text): #clearing line of text, return tuple (info, data x-year, data y-year)
     print(clear_text)
     whitespace_list = list()
     c_t = str()  #TODO
@@ -131,12 +133,21 @@ def edit_whitespaces(clear_text): #clearing line of text
         x = 0
         while x != amount_whitespaces:
             whitespace = clear_text.find(" ", start)
-            #print(whitespace)
             start = whitespace + 1
             x += 1
-            if clear_text[whitespace - 1].isdigit() == False and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == False:
+            if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2] == "(" and clear_text[whitespace + 3].isdigit() == True:
+                continue
+            if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
+                continue
+            if clear_text[whitespace + 1] == " ":
                 whitespace_list.append(whitespace)
                 continue
+            #if clear_text[whitespace - 1].isdigit() == False and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == False:
+            #    whitespace_list.append(whitespace)
+            #    continue
+            #if clear_text[whitespace - 1].isdigit() == True and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
+            #    whitespace_list.append(whitespace)
+            #    continue
             #if clear_text[whitespace - 1].isdigit() == True and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == False:
             #    whitespace_list.append(whitespace)
             #    continue
@@ -214,17 +225,21 @@ def edit_whitespaces(clear_text): #clearing line of text
         #    elif clear_text[i] == " " and clear_text[i-1] == ")" and is_here_alnum(clear_text[i:len(clear_text)]) == "digit" and clear_text[i+1] != " ":
         #       c_t += " "
         #clear_text = c_t.strip() + clear_text[len(clear_text) - 1] #1 whitespace added among numbers and text
+        print(clear_text)
         parts = clear_text.rsplit("  ", maxsplit = 2)
-        #print(parts)
         if len(parts) == 3:
-            part1 = parts[0].rsplit(" ", 1)[0] #text part of line
+            part1_parts = parts[0].rsplit(" ", 1)
+            if part1_parts[1].isdigit():
+                part1 = part1_parts[0] #text part of line
+            else:
+                part1 = parts[0]
             part2 = parts[1]
             part3 = parts[2]
             return (part1, part2, part3) 
         else: 
             return (parts[0],"","")
     else:
-        return ""
+        return ("","","")
 
 def collect_data(pages, measuring_unit): #reads the page and finds needed params
     #print("Find necessary data")
@@ -342,7 +357,7 @@ def find_amount(text): #find amount of shares  #TODOOOOO
             if is_here_num(line) == True and amount_line[0].isupper() == True:
                 for name in shares_amount_list:
                     if amount_line.count(name) >= 1:
-                        amount_line = edit_whitespaces(amount_line)
+                        #amount_line = edit_whitespaces(amount_line)
                         #print(amount_line)
                         for mu in measure_unit_thousands_list:
                             if amount_line.count(mu) >= 1:
@@ -424,11 +439,11 @@ def run(url, name, method):#just run the program
     ticker.url = url
     filename = get_file(tkr = ticker, name = name)
     pages = read_content(filename)
-    collect_data(pages, measure_unit)
-    get_price(method)
-    analyze_data()
+    #collect_data(pages, measure_unit)
+    #get_price(method)
+    #analyze_data()
     #write_db()
-    print_data()
+    #print_data()
     return (len(pages), ticker.pe, ticker.ps)
 
 ticker = Ticker()
@@ -438,7 +453,7 @@ measure_unit = int()
 method = "t"
 
 if __name__ == "__main__":
-    name = "hydr"#input("Type ticker name: ")
-    run(docs[4], name, method)
+    name = "mtss"#input("Type ticker name: ")
+    run(docs[1], name, method)
     
 
