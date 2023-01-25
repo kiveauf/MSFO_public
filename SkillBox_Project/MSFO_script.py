@@ -113,6 +113,7 @@ def check(page): #takes lines of text
               "Консолидированный Отчет о движении денежных средств"
               ]
     oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
+    #print(page)
     for stroka in page.splitlines():
         for line in oglavlenie:
             if " ".join(stroka.split()).count(line) >= 1:
@@ -124,8 +125,8 @@ def check(page): #takes lines of text
 
 def edit_whitespaces(clear_text): #clearing line of text, return tuple (info, data x-year, data y-year)
     print(clear_text)
-    whitespace_list = list()
-    c_t = str()  #TODO
+    whitespace_to_delete_list = list()
+    whitespace_to_add_list = list()
     if len(clear_text) != 0:
         clear_text = clear_text.strip()
         amount_whitespaces = clear_text.count(" ")
@@ -135,13 +136,25 @@ def edit_whitespaces(clear_text): #clearing line of text, return tuple (info, da
             whitespace = clear_text.find(" ", start)
             start = whitespace + 1
             x += 1
-            if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2] == "(" and clear_text[whitespace + 3].isdigit() == True:
-                continue
-            if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
-                continue
-            if clear_text[whitespace + 1] == " ":
-                whitespace_list.append(whitespace)
-                continue
+            if alldigit(clear_text[whitespace:len(clear_text)]) == False:
+                if clear_text[whitespace + 1] == " ":
+                    whitespace_to_delete_list.append(whitespace)
+                    continue
+            else:
+                if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2] == "(" and clear_text[whitespace + 3].isdigit() == True:
+                    continue
+                if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
+                    continue
+                if clear_text[whitespace - 1] == ")" and clear_text[whitespace + 1] == "(":
+                    whitespace_to_add_list.append(whitespace)
+                    continue
+                if clear_text[whitespace - 1] != " " and clear_text[whitespace + 1] == "(" and clear_text[whitespace + 2].isdigit() == True:
+                    whitespace_to_add_list.append(whitespace)
+                    continue
+                if clear_text[whitespace + 1] == " ":
+                    whitespace_to_delete_list.append(whitespace)
+                    continue
+            
             #if clear_text[whitespace - 1].isdigit() == False and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == False:
             #    whitespace_list.append(whitespace)
             #    continue
@@ -154,7 +167,7 @@ def edit_whitespaces(clear_text): #clearing line of text, return tuple (info, da
             #if clear_text[whitespace - 1].isdigit() == True and clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
             #    whitespace_list.append(whitespace)
             #    continue
-        clear_text = replace_whitespace(clear_text, whitespace_list)
+        clear_text = edit_whitespace(clear_text, whitespace_to_delete_list, whitespace_to_add_list)
         #for i in range(len(clear_text) - 1):
         #    if clear_text[i] == " " and clear_text[i-1].isalpha() == True and clear_text[i+1] == ",":
         #       continue
@@ -229,7 +242,7 @@ def edit_whitespaces(clear_text): #clearing line of text, return tuple (info, da
         parts = clear_text.rsplit("  ", maxsplit = 2)
         if len(parts) == 3:
             part1_parts = parts[0].rsplit(" ", 1)
-            if part1_parts[1].isdigit():
+            if len(part1_parts) == 1 or part1_parts[1].isdigit():
                 part1 = part1_parts[0] #text part of line
             else:
                 part1 = parts[0]
@@ -237,7 +250,7 @@ def edit_whitespaces(clear_text): #clearing line of text, return tuple (info, da
             part3 = parts[2]
             return (part1, part2, part3) 
         else: 
-            return (parts[0],"","")
+            return (parts[0],"","")  # TODO if cannot properly read, make some func mb
     else:
         return ("","","")
 
@@ -279,17 +292,29 @@ def is_here_alnum(line): #tells what line contains
         return "alpha"
     return "other"
 
+def alldigit(line):
+    edited_line = "".join(line.split())
+    edited_line = edited_line.replace("(","")
+    edited_line = edited_line.replace(")","")
+    if edited_line.isdigit() == True:
+        return True
+    return False
+
 #def edit_line(line): # do some editing with line containing viruchku
 #    viruchka_parts = line.partition("  ")[2].strip()
 #    space = viruchka_parts.find(" ")
 #    viruchka_parts = viruchka_parts[space:len(viruchka_parts)].strip()
 #    return viruchka_parts
 
-def replace_whitespace(line, index_list): #remove one whitespace from double whitespaces
+def edit_whitespace(line, index_list_to_delete, index_list_to_add): #remove one whitespace from double whitespaces
     patch = list(line)
     counter = 0
-    for i in index_list:
-        patch.pop(i - counter)
+    #if 
+    for i in index_list_to_delete:
+        patch.pop(i + counter)
+        counter -= 1
+    for i in index_list_to_add:
+        patch.insert(i + counter, " ")
         counter += 1
     return "".join(patch)
 
