@@ -15,6 +15,8 @@ from tinkoff.invest import Client
 import mysql.connector as sql
 from dotenv import load_dotenv
 from DocsTest import docs
+import camelot
+import tkinter
 #import asyncio
 #import aiohttp
 #import getpass
@@ -35,11 +37,9 @@ class Ticker():
         self.pe = float()
         self.ps = float()
         self.i = 0
-
     def __iter__(self):
         self.i = 0
         return self
-
     def __next__(self):
         self.i += 1
         if self.i == 1:
@@ -67,19 +67,20 @@ def read_content(filename): #takes file and returns dict.
     #print("Reading content")
     content_pages = list()
     with open(filename, 'rb') as f:
-        pdf_file = PyPDF2.PdfFileReader(f, strict=False)
+        pdf_file = camelot.read_pdf(f)
+        #pdf_file = PyPDF2.PdfFileReader(f, strict=False)
         page_dohod = pdf_file.pages
         for page in page_dohod:
             info = page.extract_text() #just strings
             info = edit_data(text = info) #now it is dict {info : (data x-year, data y-year)}
-            if len(info) != 0 and len(content_pages) < 4:
-                content_pages.append(info)
+            #if len(info) != 0 and len(content_pages) < 4:
+            content_pages.append(info)
     #print("Content ready")
-    if len(content_pages) != 4:
-        print("Есть ошибки прочтения")
-        print(f"Количество страниц - {len(pages)}")
-        return[]
-    print(len(content_pages))
+    #if len(content_pages) != 4:
+    #    print("Есть ошибки прочтения")
+    #    print(f"Количество страниц - {len(pages)}")
+    #    return[]
+    #print(len(content_pages))
     content_pages = {**content_pages[0], **content_pages[1], **content_pages[2], **content_pages[3]} 
     return content_pages
 
@@ -88,8 +89,8 @@ def edit_data(text): #takes whole str page and return tuple
     stroki = dict()
     if ticker.amount == 0:
            find_amount(text)
-    if check(text) == False: #checks if the page is in the list
-        return []
+    #if check(text) == False: #checks if the page is in the list
+    #    return []
     for stroka in text.splitlines():
         if len(stroka.strip()) == 0 or stroka == "\n":
             stroka = stroka.strip(" \n")
@@ -241,11 +242,7 @@ def edit_whitespaces(clear_text): #clearing line of text, return tuple (info, da
         print(clear_text)
         parts = clear_text.rsplit("  ", maxsplit = 2)
         if len(parts) == 3:
-            part1_parts = parts[0].rsplit(" ", 1)
-            if len(part1_parts) == 1 or part1_parts[1].isdigit():
-                part1 = part1_parts[0] #text part of line
-            else:
-                part1 = parts[0]
+            part1 = parts[0]
             part2 = parts[1]
             part3 = parts[2]
             return (part1, part2, part3) 
