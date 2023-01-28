@@ -2,7 +2,7 @@
 script to collect and analyze data from msfo sheets and real stock price
 use python 3.9
 """
-
+from IPython.display import display
 import PyPDF2
 import requests
 import logging
@@ -14,9 +14,11 @@ import os
 from tinkoff.invest import Client
 import mysql.connector as sql
 from dotenv import load_dotenv
-from DocsTest import docs
+from DocsTest import docs 
 import camelot
+import matplotlib
 import tkinter
+import pandas as pd
 #import asyncio
 #import aiohttp
 #import getpass
@@ -66,43 +68,53 @@ def get_file(tkr, name): # take url of the file
 def read_content(filename): #takes file and returns dict.
     #print("Reading content")
     content_pages = list()
+    number_pages = list()
+    counter = int()
     with open(filename, 'rb') as f:
-        pdf_file = camelot.read_pdf(f)
-        #pdf_file = PyPDF2.PdfFileReader(f, strict=False)
+        pdf_file = PyPDF2.PdfFileReader(f, strict=False)
         page_dohod = pdf_file.pages
         for page in page_dohod:
             info = page.extract_text() #just strings
-            info = edit_data(text = info) #now it is dict {info : (data x-year, data y-year)}
-            #if len(info) != 0 and len(content_pages) < 4:
-            content_pages.append(info)
+            if read_data(info) == True: #check if page contains needed tables
+                number_pages.append(str(counter))
+            counter += 1
     #print("Content ready")
+    number_pages = ", ".join(number_pages)
+    print(number_pages)
+    camel(filename, number_pages)
     #if len(content_pages) != 4:
     #    print("Есть ошибки прочтения")
     #    print(f"Количество страниц - {len(pages)}")
     #    return[]
-    #print(len(content_pages))
-    content_pages = {**content_pages[0], **content_pages[1], **content_pages[2], **content_pages[3]} 
     return content_pages
 
-def edit_data(text): #takes whole str page and return tuple
-    clear_text = str()
-    stroki = dict()
-    if ticker.amount == 0:
-           find_amount(text)
-    #if check(text) == False: #checks if the page is in the list
-    #    return []
-    for stroka in text.splitlines():
-        if len(stroka.strip()) == 0 or stroka == "\n":
-            stroka = stroka.strip(" \n")
-            continue
-        if stroka[0].isupper() == True:
-            clear_text = edit_whitespaces(clear_text) #now is tuple (info, data x-year, data y-year)
-            print(clear_text)
-            stroki.setdefault(clear_text[0],(clear_text[1],clear_text[2]))
-            clear_text = ""
-        clear_text += stroka + " " #adding words to one line
-        know_measure(stroka)
-    return stroki
+def camel(pdf_file, pages):
+    pdf_file = camelot.read_pdf(filename, flavor = "stream", pages = pages, table_areas=['60,630,550,40'])
+    camelot.plot(pdf_file[8], kind = 'contour').show()
+    matplotlib.pyplot.show(block=True)
+    result = pdf_file[8].df
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 500)
+    display(result)
+
+def read_data(text): #takes whole str page and return tuple
+    #if ticker.amount == 0:
+    #       find_amount(text)
+    if check(text) == False: #checks if the page is in the list
+        return False
+    #for stroka in text.splitlines():
+    #    if len(stroka.strip()) == 0 or stroka == "\n":
+    #        stroka = stroka.strip(" \n")
+    #        continue
+    #    if stroka[0].isupper() == True:
+    #        clear_text = edit_whitespaces(clear_text) #now is tuple (info, data x-year, data y-year)
+    #        print(clear_text)
+    #        stroki.setdefault(clear_text[0],(clear_text[1],clear_text[2]))
+    #        clear_text = ""
+    #    clear_text += stroka + " " #adding words to one line
+    #    know_measure(stroka)
+    return True
 
 def check(page): #takes lines of text
     report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
@@ -121,6 +133,7 @@ def check(page): #takes lines of text
                 return False
         for headline in report:
             if " ".join(stroka.split()).count(headline) >= 1:
+                print(stroka)
                 return True
     return False
 
@@ -459,14 +472,15 @@ def timetrack(func):
 @timetrack
 def run(url, name, method):#just run the program
     ticker.url = url
-    filename = get_file(tkr = ticker, name = name)
-    pages = read_content(filename)
+    filename = get_file(tkr = ticker, name = name) 
+    #print(type(filename))
+    pages = read_content(str(filename))
     #collect_data(pages, measure_unit)
     #get_price(method)
     #analyze_data()
     #write_db()
     #print_data()
-    return (len(pages), ticker.pe, ticker.ps)
+    #return (len(pages), ticker.pe, ticker.ps)
 
 ticker = Ticker()
 filename = str()
