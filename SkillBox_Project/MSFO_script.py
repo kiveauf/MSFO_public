@@ -85,13 +85,13 @@ def read_content(filename): #takes file and returns dict.
         print(i)
     return content_pages
 
-def camel(filename, pages, table_areas): #takes file and number of pages and returns 
+def camel(filename, pages, table_areas, st = ""): #takes file and number of pages and returns 
     pages_list_raw = list()
     pages_dicts = dict()
-    pdf_file = camelot.read_pdf(filename, flavor = "stream", pages = pages, table_areas = table_areas)
+    pdf_file = camelot.read_pdf(filename, flavor = "stream", pages = pages, table_areas = table_areas, strip_text = st)
     for i in pdf_file:
-        camelot.plot(i, kind = 'contour').show()
-        matplotlib.pyplot.show(block=True)
+        #camelot.plot(i, kind = 'contour').show()
+        #matplotlib.pyplot.show(block=True)
         result = i.df
         pd.set_option('display.max_rows', 500)
         pd.set_option('display.max_columns', 2000)
@@ -103,6 +103,8 @@ def camel(filename, pages, table_areas): #takes file and number of pages and ret
     for i in pages_list_raw:
         print(i)
     pages_dicts = take_info(pages_list_raw)
+    #for k,v in pages_dicts.items():
+    #    print(k,v)
     return pages_dicts
 
 def read_data(text, counter, filename): #takes whole str page and return tuple
@@ -114,13 +116,32 @@ def read_data(text, counter, filename): #takes whole str page and return tuple
     return True
 
 #TODO algo to now what actual number to get
-def take_info(pages_raw): #takes dict of pages and returns dict (info: latest number)
+def take_info(pages_raw): #takes list with dicts and returns dict (info: latest number)
     pages_dict = dict()
     for line in pages_raw:
-        if line[1].get(2) == "":
-            pages_dict.setdefault(line[1].get(0), line[1].get(3))
-        else:
-            pages_dict.setdefault(line[1].get(0), line[1].get(2)) 
+        items_raw = list()
+        dictt = line[1]
+        for i in dictt.values():
+            if i != "" and len(i) > 2:
+                items_raw.append(i) 
+        if len(items_raw) > 1:
+            pages_dict.setdefault(items_raw[0], items_raw[1]) #todo [1:len(items_raw)]
+        elif len(items_raw) == 1:
+            pages_dict.setdefault(items_raw[0], "")
+        """ In case I want to combine lines
+        #if len(items_raw) > 1 and mark == False:
+        #    pages_dict.setdefault(items_raw[0], items_raw[1:len(items_raw)])
+        #    continue
+        #if len(items_raw) == 1:
+        #    pages_dict.setdefault(items_raw[0], "")
+        #    mark = True
+        #    continue
+        #if len(items_raw) > 1 and mark == True:
+        #    key = pages_dict.popitem()
+        #    pages_dict.setdefault(key[0]+items_raw[0], items_raw[1:len(items_raw)])
+        #    mark = False
+        #    continue
+        """
     return pages_dict
 
 def check(page): #takes lines of text
@@ -150,14 +171,16 @@ def collect_data(pages, measuring_unit): #reads the page and finds needed params
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
     for name in viruchka_list:
         if pages.get(name) != None:
-            viruchka = pages.get(name)
+            viruchka_line = pages.get(name)
+            viruchka = "".join(viruchka_line.split())
             ticker.viruchka = int(viruchka) * measuring_unit
-            #print(f"Выручка - {ticker.viruchka}")
+            print(f"Выручка - {viruchka}")
     for name in pribyl_list:
         if pages.get(name) != None:
-            pribyl = pages.get(name)
+            pribyl_line = pages.get(name)
+            pribyl = "".join(pribyl_line.split())
             ticker.pribyl = int(pribyl) * measuring_unit
-            #print(f"Прибыль - {ticker.pribyl}")
+            print(f"Прибыль - {pribyl}")
 
 def is_here_num(line): #if line contains number
     for i in line.strip():
@@ -230,7 +253,6 @@ def parser(): #using selenium to get all info because of javascript
 def find_amount(text, counter, filename): #find amount of shares 
     amount_key = str()
     amount_value = int()
-    #amount_line = str()
     measure_unit_thousands_list = ["в тысячах", "тысяч"]
     measure_unit_mil_list = ["в млн", "млн"]
     shares_amount_list = ["Средневзвешенное количество выпущенных обыкновенных акций", "Средневзвешенное количество обыкновенных акций",
@@ -241,14 +263,19 @@ def find_amount(text, counter, filename): #find amount of shares
         if len(line) != 0:
             for name in shares_amount_list:
                 if line.count(name) >= 1:
-                    print(line)
-                    amount_dict = camel(filename, str(counter), ['90,800,550,40']) #dict with info on the page
-                    for key,value in amount_dict.items():
+                    #print(line)
+                    amount_dict = camel(filename, str(counter), ['90,800,550,40'], "\n") #dict with info on the page
+                    items = list(amount_dict.items())
+                    for key,value in items:
                         print(key, value)
                         if key.count(name) > 0:
                             amount_key = key
                             amount_value = value
-                    print(amount_key, amount_value)
+                            if amount_value == "":
+                                amount_tuple = items[items.index((key, value)) + 1] #tuple (info, data)
+                                print(amount_tuple)
+                                amount_value = amount_tuple[1].split("  ")[0]
+                            continue
                     for mu in measure_unit_thousands_list:
                         if amount_key.count(mu) > 0:
                             ticker.amount = amount_value * 1000
@@ -262,6 +289,57 @@ def find_amount(text, counter, filename): #find amount of shares
                     ticker.amount = amount_value
                     #print(f"Количество акций - {ticker.amount} шт.")
                     return True
+
+def edit_whitespaces(clear_text): #clearing line of text, return ???
+    print(clear_text)
+    whitespace_list = list() 
+    if len(clear_text) != 0:
+        clear_text = clear_text.strip()
+        amount_whitespaces = clear_text.count(" ")
+        start = 0
+        x = 0
+        while x != amount_whitespaces:
+            whitespace = clear_text.find(" ", start)
+            start = whitespace + 1
+            x += 1
+            if alldigit(clear_text[whitespace:len(clear_text)]) == True:
+                if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
+                    continue
+                if clear_text[whitespace + 1] == " ":
+                    whitespace_list.append(whitespace)
+                    continue
+        clear_text = replace_whitespace(clear_text, whitespace_list)
+        print(clear_text)
+        parts = clear_text.rsplit("  ", maxsplit = 2)
+        if len(parts) == 3:
+            part1_parts = parts[0].rsplit(" ", 1)
+            if part1_parts[1].isdigit():
+                part1 = part1_parts[0] #text part of line
+            else:
+                part1 = parts[0]
+            part2 = parts[1]
+            part3 = parts[2]
+            return (part1, part2, part3) 
+        else: 
+            return (parts[0],"","")
+    else:
+        return ("","","")
+
+def replace_whitespace(line, index_list): #remove one whitespace from double whitespaces
+    patch = list(line)
+    counter = 0
+    for i in index_list:
+        patch.pop(i - counter)
+        counter += 1
+    return "".join(patch)
+
+def alldigit(line):
+    edited_line = "".join(line.split())
+    edited_line = edited_line.replace("(","")
+    edited_line = edited_line.replace(")","")
+    if edited_line.isdigit() == True:
+        return True
+    return False
 
 def tinkoff_api():
     ticker_data = str()
@@ -331,8 +409,8 @@ def run(url, name, method):#just run the program
     #print(type(filename))
     pages = read_content(str(filename))
     collect_data(pages, measure_unit)
-    get_price(method)
-    analyze_data()
+    #get_price(method)
+    #analyze_data()
     #write_db()
     #print_data()
     #return (len(pages), ticker.pe, ticker.ps)
@@ -344,7 +422,7 @@ measure_unit = int()
 method = "t"
 
 if __name__ == "__main__":
-    name = "mtss"#input("Type ticker name: ")
+    name = "mgnt"#input("Type ticker name: ")
     run(docs[1], name, method)
     
 
