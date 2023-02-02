@@ -47,13 +47,16 @@ class Ticker():
         if self.i == 1:
             return f"Цена составила - {ticker.price} руб."
         if self.i == 2:
-            return f"Прибыль составила - {ticker.pribyl} руб."
+            return f"Количество акций - {ticker.amount} руб."
         if self.i == 3:
-            return f"Выручка составила - {ticker.viruchka} руб."
+            return f"Прибыль составила - {ticker.pribyl} руб."
         if self.i == 4:
-            return f"p/e - {ticker.pe}"
+            return f"Выручка составила - {ticker.viruchka} руб."
         if self.i == 5:
+            return f"p/e - {ticker.pe}"
+        if self.i == 6:
             return f"p/s - {ticker.ps}"
+        
         raise StopIteration()
 
 def get_file(tkr, name): # take url of the file
@@ -97,11 +100,10 @@ def camel(filename, pages, table_areas, st = ""): #takes file and number of page
         pd.set_option('display.max_columns', 2000)
         pd.set_option('display.width', 500)
         result_dict = result.to_dict(orient = "index")
-        #print(result_dict)
         for i in result_dict.items(): 
             pages_list_raw.append(i)
-    for i in pages_list_raw:
-        print(i)
+    #for i in pages_list_raw:
+    #    print(i)
     pages_dicts = take_info(pages_list_raw)
     #for k,v in pages_dicts.items():
     #    print(k,v)
@@ -173,14 +175,16 @@ def collect_data(pages, measuring_unit): #reads the page and finds needed params
         if pages.get(name) != None:
             viruchka_line = pages.get(name)
             viruchka = "".join(viruchka_line.split())
+            #print(measuring_unit)
             ticker.viruchka = int(viruchka) * measuring_unit
-            print(f"Выручка - {viruchka}")
+            print(f"Выручка - {ticker.viruchka}")
     for name in pribyl_list:
         if pages.get(name) != None:
             pribyl_line = pages.get(name)
             pribyl = "".join(pribyl_line.split())
+            #print(measuring_unit)
             ticker.pribyl = int(pribyl) * measuring_unit
-            print(f"Прибыль - {pribyl}")
+            print(f"Прибыль - {ticker.pribyl}")
 
 def is_here_num(line): #if line contains number
     for i in line.strip():
@@ -212,7 +216,8 @@ def know_notes(line): #checks if there notes
 
 def know_measure(text):
     global measure_unit
-    for line in text:
+    for line in text.splitlines():
+        #print(line)
         for word in line.split():
                 if word in ["тыс.", "тыс", "тысячах", "thousands"]:
                     measure_unit = 1000 #measuring unit
@@ -267,18 +272,23 @@ def find_amount(text, counter, filename): #find amount of shares
                     amount_dict = camel(filename, str(counter), ['90,800,550,40'], "\n") #dict with info on the page
                     items = list(amount_dict.items())
                     for key,value in items:
-                        print(key, value)
+                        #print(key, value)
                         if key.count(name) > 0:
                             amount_key = key
                             amount_value = value
+                            #print(amount_key, amount_value)
                             if amount_value == "":
                                 amount_tuple = items[items.index((key, value)) + 1] #tuple (info, data)
-                                print(amount_tuple)
                                 amount_value = amount_tuple[1].split("  ")[0]
+                                amount_key = amount_tuple[0]
+                                amount_value = amount_tuple[1]
+                            amount_key, amount_value = correct_data(amount_key, amount_value) #check if key = info and values = numbers and all correct
+                            amount_value = "".join(amount_value.split())
+                            print(amount_key, "|", amount_value)
                             continue
                     for mu in measure_unit_thousands_list:
                         if amount_key.count(mu) > 0:
-                            ticker.amount = amount_value * 1000
+                            ticker.amount = amount_value * 1000       
                             #print(f"Количество акций - {ticker.amount} шт.")
                             return True
                     for mu in measure_unit_mil_list:
@@ -289,6 +299,22 @@ def find_amount(text, counter, filename): #find amount of shares
                     ticker.amount = amount_value
                     #print(f"Количество акций - {ticker.amount} шт.")
                     return True
+
+def correct_data(key, value):
+    i = int()
+    if value == "":
+        if is_here_alnum(key) == "alnum":
+            while i < key.count(" "):
+                whitespace = key.find(" ")
+                if alldigit(key[whitespace:len(key)]) == True:
+                    new_key = key[0:whitespace]
+                    new_value = key[whitespace:len(key)].split(" ")
+                    return (new_key, new_value[0])
+                i += 1
+    else:
+        if is_here_alnum(key) == "alpha" and alldigit(value):
+            new_value = value.split("  ")
+            return (key, new_value[0])
 
 def edit_whitespaces(clear_text): #clearing line of text, return ???
     print(clear_text)
@@ -388,7 +414,7 @@ def print_db(line):
     print(end="\n")
 
 def analyze_data(): #just do the math
-    ticker.capitalization = ticker.price * ticker.amount
+    ticker.capitalization = ticker.price * float(ticker.amount)
     if ticker.pribyl != 0:
         ticker.pe = ticker.capitalization / ticker.pribyl
     if ticker.viruchka != 0:
@@ -406,14 +432,13 @@ def timetrack(func):
 def run(url, name, method):#just run the program
     ticker.url = url
     filename = get_file(tkr = ticker, name = name) 
-    #print(type(filename))
     pages = read_content(str(filename))
     collect_data(pages, measure_unit)
-    #get_price(method)
-    #analyze_data()
+    get_price(method)
+    analyze_data()
     #write_db()
-    #print_data()
-    #return (len(pages), ticker.pe, ticker.ps)
+    print_data()
+    return (len(pages), ticker.pe, ticker.ps)
 
 ticker = Ticker()
 filename = str()
@@ -422,7 +447,7 @@ measure_unit = int()
 method = "t"
 
 if __name__ == "__main__":
-    name = "mgnt"#input("Type ticker name: ")
+    name = "mtss"#input("Type ticker name: ")
     run(docs[1], name, method)
     
 
