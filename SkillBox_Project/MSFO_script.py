@@ -83,7 +83,7 @@ def read_content(filename): #takes file and returns dict.
             counter += 1
     #print("Content ready")
     number_pages = ", ".join(number_pages)
-    content_pages = camel(filename, number_pages, ['60,645,550,40']) #now dict with page info
+    content_pages = camel(filename, number_pages, ['50,750,550,40']) #now dict with page info
     for i in content_pages.items():
         print(i)
     return content_pages
@@ -102,8 +102,8 @@ def camel(filename, pages, table_areas, st = ""): #takes file and number of page
         result_dict = result.to_dict(orient = "index")
         for i in result_dict.items(): 
             pages_list_raw.append(i)
-    #for i in pages_list_raw:
-    #    print(i)
+    for i in pages_list_raw:
+        print(i)
     pages_dicts = take_info(pages_list_raw)
     #for k,v in pages_dicts.items():
     #    print(k,v)
@@ -288,15 +288,15 @@ def find_amount(text, counter, filename): #find amount of shares
                             continue
                     for mu in measure_unit_thousands_list:
                         if amount_key.count(mu) > 0:
-                            ticker.amount = amount_value * 1000       
+                            ticker.amount = float(amount_value) * 1000       
                             #print(f"Количество акций - {ticker.amount} шт.")
                             return True
                     for mu in measure_unit_mil_list:
                         if amount_key.count(mu) > 0:
-                            ticker.amount = amount_value * 1000000
+                            ticker.amount = float(amount_value) * 1000000
                             #print(f"Количество акций - {ticker.amount} шт.")
                             return True
-                    ticker.amount = amount_value
+                    ticker.amount = float(amount_value)
                     #print(f"Количество акций - {ticker.amount} шт.")
                     return True
 
@@ -414,7 +414,7 @@ def print_db(line):
     print(end="\n")
 
 def analyze_data(): #just do the math
-    ticker.capitalization = ticker.price * float(ticker.amount)
+    ticker.capitalization = ticker.price * ticker.amount
     if ticker.pribyl != 0:
         ticker.pe = ticker.capitalization / ticker.pribyl
     if ticker.viruchka != 0:
@@ -447,7 +447,7 @@ measure_unit = int()
 method = "t"
 
 if __name__ == "__main__":
-    name = "mtss"#input("Type ticker name: ")
-    run(docs[1], name, method)
+    name = "hydr"#input("Type ticker name: ")
+    run(docs[4], name, method)
     
 
