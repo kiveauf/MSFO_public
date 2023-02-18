@@ -2,7 +2,6 @@
 script to collect and analyze data from msfo sheets and real stock price
 use python 3.9
 """
-from IPython.display import display
 import PyPDF2
 import requests
 import logging
@@ -16,9 +15,10 @@ import mysql.connector as sql
 from dotenv import load_dotenv
 from DocsTest import docs 
 import camelot
+import pandas as pd
 import matplotlib
 import tkinter
-import pandas as pd
+from IPython.display import display
 #import asyncio
 #import aiohttp
 #import getpass
@@ -47,7 +47,7 @@ class Ticker():
         if self.i == 1:
             return f"Цена составила - {ticker.price} руб."
         if self.i == 2:
-            return f"Количество акций - {ticker.amount} руб."
+            return f"Количество акций - {ticker.amount} шт."
         if self.i == 3:
             return f"Прибыль составила - {ticker.pribyl} руб."
         if self.i == 4:
@@ -56,7 +56,6 @@ class Ticker():
             return f"p/e - {ticker.pe}"
         if self.i == 6:
             return f"p/s - {ticker.ps}"
-        
         raise StopIteration()
 
 def get_file(tkr, name): # take url of the file
@@ -68,7 +67,7 @@ def get_file(tkr, name): # take url of the file
     #print("Done")
     return filename
 
-def read_content(filename): #takes file and returns dict.
+def read_content(filename): #takes file and returns dict with all lines on info pages
     #print("Reading content")
     content_pages = list()
     number_pages = list()
@@ -88,6 +87,14 @@ def read_content(filename): #takes file and returns dict.
         print(i)
     return content_pages
 
+def read_data(text, counter, filename): #takes whole str page and return True/False if page contains needed tables and read amount of stocks and measure units of pages
+    if ticker.amount == 0:
+           find_amount(text, counter, filename)
+    if check(text) == False: #checks if the page is in the list
+        return False
+    know_measure(text)
+    return True
+
 def camel(filename, pages, table_areas, st = ""): #takes file and number of pages and returns 
     pages_list_raw = list()
     pages_dicts = dict()
@@ -102,32 +109,22 @@ def camel(filename, pages, table_areas, st = ""): #takes file and number of page
         result_dict = result.to_dict(orient = "index")
         for i in result_dict.items(): 
             pages_list_raw.append(i)
-    for i in pages_list_raw:
-        print(i)
+    #for i in pages_list_raw:
+    #    print(i)
     pages_dicts = take_info(pages_list_raw)
-    #for k,v in pages_dicts.items():
-    #    print(k,v)
     return pages_dicts
-
-def read_data(text, counter, filename): #takes whole str page and return tuple
-    if ticker.amount == 0:
-           find_amount(text, counter, filename)
-    if check(text) == False: #checks if the page is in the list
-        return False
-    know_measure(text)
-    return True
 
 #TODO algo to now what actual number to get
 def take_info(pages_raw): #takes list with dicts and returns dict (info: latest number)
     pages_dict = dict()
-    for line in pages_raw:
+    for line in pages_raw:  #line look like: [(line_number, dict)]
         items_raw = list()
         dictt = line[1]
-        for i in dictt.values():
+        for i in dictt.values(): #read non-empty values and ignore notes
             if i != "" and len(i) > 2:
                 items_raw.append(i) 
         if len(items_raw) > 1:
-            pages_dict.setdefault(items_raw[0], items_raw[1]) #todo [1:len(items_raw)]
+            pages_dict.setdefault(items_raw[0], items_raw[1]) #todo [1:len(items_raw)] to get whole data
         elif len(items_raw) == 1:
             pages_dict.setdefault(items_raw[0], "")
         """ In case I want to combine lines
@@ -146,7 +143,7 @@ def take_info(pages_raw): #takes list with dicts and returns dict (info: latest 
         """
     return pages_dict
 
-def check(page): #takes lines of text
+def check(page): #takes lines of text and check if page is needed
     report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
               "Консолидированный отчет о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
               "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированный отчет об изменениях в капитале",
@@ -167,7 +164,7 @@ def check(page): #takes lines of text
                 return True
     return False
 
-def collect_data(pages, measuring_unit): #reads the page and finds needed params
+def collect_data(pages, measuring_unit): #takes dict and finds needed params
     #print("Find necessary data")
     viruchka_list = ["Выручка"]
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
@@ -255,7 +252,7 @@ def parser(): #using selenium to get all info because of javascript
     #amount_sel = page.find_elements(By.CLASS_NAME, 'Yai9')
     #ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
 
-def find_amount(text, counter, filename): #find amount of shares 
+def find_amount(text, counter, filename): #takes text and find amount of shares 
     amount_key = str()
     amount_value = int()
     measure_unit_thousands_list = ["в тысячах", "тысяч"]
@@ -270,22 +267,8 @@ def find_amount(text, counter, filename): #find amount of shares
                 if line.count(name) >= 1:
                     #print(line)
                     amount_dict = camel(filename, str(counter), ['90,800,550,40'], "\n") #dict with info on the page
-                    items = list(amount_dict.items())
-                    for key,value in items:
-                        #print(key, value)
-                        if key.count(name) > 0:
-                            amount_key = key
-                            amount_value = value
-                            #print(amount_key, amount_value)
-                            if amount_value == "":
-                                amount_tuple = items[items.index((key, value)) + 1] #tuple (info, data)
-                                amount_value = amount_tuple[1].split("  ")[0]
-                                amount_key = amount_tuple[0]
-                                amount_value = amount_tuple[1]
-                            amount_key, amount_value = correct_data(amount_key, amount_value) #check if key = info and values = numbers and all correct
-                            amount_value = "".join(amount_value.split())
-                            print(amount_key, "|", amount_value)
-                            continue
+                    items = list(amount_dict.items()) #making list to have indexes in case when info splitted into 2 lines
+                    amount_key, amount_value = get_key_value(items, name) 
                     for mu in measure_unit_thousands_list:
                         if amount_key.count(mu) > 0:
                             ticker.amount = float(amount_value) * 1000       
@@ -299,6 +282,24 @@ def find_amount(text, counter, filename): #find amount of shares
                     ticker.amount = float(amount_value)
                     #print(f"Количество акций - {ticker.amount} шт.")
                     return True
+
+def get_key_value(items, name): #func in case line splitted into 2 lines, we get next line
+    for key,value in items:
+        #print(key, value)
+        if key.count(name) > 0:
+            amount_key = key
+            amount_value = value
+            #print(amount_key, amount_value)
+            if amount_value == "": 
+                index_actual_pair = items.index((key, value))
+                amount_tuple = items[index_actual_pair + 1] #tuple (info, data) from next line
+                amount_value = amount_tuple[1].split("  ")[0]
+                amount_key = amount_tuple[0]
+                amount_value = amount_tuple[1]
+            amount_key, amount_value = correct_data(amount_key, amount_value) #check if key = info and values = numbers and all correct
+            amount_value = "".join(amount_value.split())
+            #print(amount_key, "|", amount_value)
+            return (amount_key, amount_value)
 
 def correct_data(key, value):
     i = int()
@@ -316,6 +317,9 @@ def correct_data(key, value):
             new_value = value.split("  ")
             return (key, new_value[0])
 
+"""
+Not used, on some case
+"""
 def edit_whitespaces(clear_text): #clearing line of text, return ???
     print(clear_text)
     whitespace_list = list() 
@@ -351,6 +355,9 @@ def edit_whitespaces(clear_text): #clearing line of text, return ???
     else:
         return ("","","")
 
+"""
+Not used, on some case
+"""
 def replace_whitespace(line, index_list): #remove one whitespace from double whitespaces
     patch = list(line)
     counter = 0
@@ -438,7 +445,7 @@ def run(url, name, method):#just run the program
     analyze_data()
     #write_db()
     print_data()
-    return (len(pages), ticker.pe, ticker.ps)
+    return (ticker.pe, ticker.ps)
 
 ticker = Ticker()
 filename = str()
