@@ -16,9 +16,9 @@ from dotenv import load_dotenv
 from DocsTest import docs 
 import camelot
 import pandas as pd
-import matplotlib
-import tkinter
-from IPython.display import display
+#import matplotlib
+#import tkinter
+#from IPython.display import display
 #import asyncio
 #import aiohttp
 #import getpass
@@ -454,7 +454,7 @@ measure_unit = int()
 method = "t"
 
 if __name__ == "__main__":
-    name = "hydr"#input("Type ticker name: ")
-    run(docs[4], name, method)
+    name = "mtss"#input("Type ticker name: ")
+    run(docs[1], name, method)
     
 
