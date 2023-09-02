@@ -2,6 +2,7 @@
 script to collect and analyze data from msfo sheets and real stock price
 use python 3.9
 """
+
 import PyPDF2
 import requests
 import logging
@@ -58,13 +59,13 @@ class Ticker():
             return f"p/s - {ticker.ps}"
         raise StopIteration()
 
-def get_file(tkr, name): # take url of the file
-    file = requests.get(tkr.url)
-    tkr.name = name.lower()
-    filename = f"{tkr.name}_MSFO.pdf"
+def get_file(name): # take url of the file
+    file = requests.get(ticker.url)
+    ticker.name = name.lower()
+    filename = f"{ticker.name}_MSFO.pdf"
     with open(file = filename, mode = 'wb') as f:
         f.write(file.content)
-    #print("Done")
+    print(ticker.name)
     return filename
 
 def read_content(filename): #takes file and returns dict with all lines on info pages
@@ -438,14 +439,14 @@ def timetrack(func):
 @timetrack
 def run(url, name, method):#just run the program
     ticker.url = url
-    filename = get_file(tkr = ticker, name = name) 
-    pages = read_content(str(filename))
-    collect_data(pages, measure_unit)
-    get_price(method)
-    analyze_data()
+    filename = get_file(name) 
+    #pages = read_content(str(filename))
+    #collect_data(pages, measure_unit)
+    #get_price(method)
+    #analyze_data()
     #write_db()
-    print_data()
-    return (ticker.pe, ticker.ps)
+    #print_data()
+    #return (ticker.pe, ticker.ps)
 
 ticker = Ticker()
 filename = str()

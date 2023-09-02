@@ -15,9 +15,6 @@ def get_ticker_info(ticker_info : Ticker):
     url = ticker_info.url_to_pdf
     name = ticker_info.ticker_name
     method = ticker_info.parse_method
-    info = MSFO_script.run(url = url, name = name, method = method)
-    return info[0]
-
-#@app.get("/cars/")
-#async def get_cars(car: str):
-#    return cars.get(car)
+    info = MSFO_script.run(url, name, method)
+    return info
+                             
