@@ -388,3 +388,7 @@ FodyWeavers.xsd
 /SkillBox_Project/moi_code
 /Sppedd
 *.pdf
+/SkillBox_Project/module1.py
+/SkillBox_Project/module2.py
+/SkillBox_Project/module3.py
+/Performance.pyperf
