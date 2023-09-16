@@ -18,11 +18,6 @@ from DocsTest import docs
 import camelot
 import pandas as pd
 #import matplotlib
-#import tkinter
-#from IPython.display import display
-#import asyncio
-#import aiohttp
-#import getpass
                                              
 load_dotenv() #using this to get enviroment custom-made constant
 logger = logging.getLogger("PyPDF2")
@@ -39,26 +34,10 @@ class Ticker():
         self.capitalization = float()
         self.pe = float()
         self.ps = float()
-        self.i = 0
     def __iter__(self):
-        self.i = 0
-        return self
-    def __next__(self):
-        self.i += 1
-        if self.i == 1:
-            return f"Цена составила - {ticker.price} руб."
-        if self.i == 2:
-            return f"Количество акций - {ticker.amount} шт."
-        if self.i == 3:
-            return f"Прибыль составила - {ticker.pribyl} руб."
-        if self.i == 4:
-            return f"Выручка составила - {ticker.viruchka} руб."
-        if self.i == 5:
-            return f"p/e - {ticker.pe}"
-        if self.i == 6:
-            return f"p/s - {ticker.ps}"
-        raise StopIteration()
-
+        for i in self.__dict__.keys():
+            yield i
+    
 def get_file(name): # take url of the file
     file = requests.get(ticker.url)
     ticker.name = name.lower()
@@ -73,14 +52,13 @@ def read_content(filename): #takes file and returns dict with all lines on info 
     content_pages = list()
     number_pages = list()
     counter = 1
-    with open(filename, 'rb') as f:
-        pdf_file = PyPDF2.PdfFileReader(f, strict=False)
-        page_dohod = pdf_file.pages
-        for page in page_dohod:
-            info = page.extract_text() #just strings
-            if read_data(info, counter, filename) == True: #check if page contains needed tables
-                number_pages.append(str(counter))
-            counter += 1
+    pdf_file = PyPDF2.PdfFileReader(filename, strict=False)
+    page_dohod = pdf_file.pages
+    for page in page_dohod:
+        info = page.extract_text() #just strings
+        if read_data(info, counter, filename): #check if page contains needed tables
+            number_pages.append(str(counter))
+        counter += 1
     #print("Content ready")
     number_pages = ", ".join(number_pages)
     content_pages = camel(filename, number_pages, ['50,750,550,40']) #now dict with page info
@@ -90,8 +68,8 @@ def read_content(filename): #takes file and returns dict with all lines on info 
 
 def read_data(text, counter, filename): #takes whole str page and return True/False if page contains needed tables and read amount of stocks and measure units of pages
     if ticker.amount == 0:
-           find_amount(text, counter, filename)
-    if check(text) == False: #checks if the page is in the list
+        find_amount(text, counter, filename)
+    if not check(text): #checks if the page is in the list
         return False
     know_measure(text)
     return True
@@ -146,10 +124,10 @@ def take_info(pages_raw): #takes list with dicts and returns dict (info: latest 
 
 def check(page): #takes lines of text and check if page is needed
     report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
-              "Консолидированный отчет о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
-              "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированный отчет об изменениях в капитале",
+              "Консолидированный отчет о совокупном доходе", "Консолидированные отчеты о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
+              "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированные отчеты об изменениях капитала",
               "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
-              "Консолидированный отчет о прибыли или убытке", "Консолидированный отчет о финансовом положении",
+              "Консолидированный отчет о прибыли или убытке","Консолидированные отчеты о прибылях или убытках", "Консолидированные отчеты о финансовом положении",
               "Консолидированный Отчет о финансовом положении", "Консолидированный Отчет о прибылях и убытках", "Консолидированный Отчет о совокупном доходе", 
               "Консолидированный Отчет о движении денежных средств"
               ]
@@ -440,7 +418,7 @@ def timetrack(func):
 def run(url, name, method):#just run the program
     ticker.url = url
     filename = get_file(name) 
-    #pages = read_content(str(filename))
+    pages = read_content(str(filename))
     #collect_data(pages, measure_unit)
     #get_price(method)
     #analyze_data()
