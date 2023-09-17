@@ -32,6 +32,7 @@ class Ticker():
         self.price = float()
         self.amount = 0
         self.capitalization = float()
+        self.measuring_unit = int()
         self.pe = float()
         self.ps = float()
     def __iter__(self):
@@ -50,48 +51,44 @@ def get_file(name): # take url of the file
 def read_content(filename): #takes file and returns dict with all lines on info pages
     #print("Reading content")
     content_pages = list()
-    number_pages = list()
-    counter = 1
-    pdf_file = PyPDF2.PdfFileReader(filename, strict=False)
-    page_dohod = pdf_file.pages
-    for page in page_dohod:
-        info = page.extract_text() #just strings
-        if read_data(info, counter, filename): #check if page contains needed tables
-            number_pages.append(str(counter))
-        counter += 1
-    #print("Content ready")
-    number_pages = ", ".join(number_pages)
-    content_pages = camel(filename, number_pages, ['50,750,550,40']) #now dict with page info
-    for i in content_pages.items():
-        print(i)
+    content_pages = camel(filename, pages= '3-20', table_areas=['50,790,550,40']) #now dict with page info
+    """ In case we need to read all data"""
+    #pdf_file = PyPDF2.PdfFileReader(filename, strict=False)
+    #page_dohod = pdf_file.pages
+    #for page in page_dohod:
+    #    info = page.extract_text() #just strings
+    #for page in content_pages:
+    #    for line in page:
+    #        print(line)
     return content_pages
-
-def read_data(text, counter, filename): #takes whole str page and return True/False if page contains needed tables and read amount of stocks and measure units of pages
-    if ticker.amount == 0:
-        find_amount(text, counter, filename)
-    if not check(text): #checks if the page is in the list
-        return False
-    know_measure(text)
-    return True
 
 def camel(filename, pages, table_areas, st = ""): #takes file and number of pages and returns 
     pages_list_raw = list()
     pages_dicts = dict()
     pdf_file = camelot.read_pdf(filename, flavor = "stream", pages = pages, table_areas = table_areas, strip_text = st)
-    for i in pdf_file:
-        #camelot.plot(i, kind = 'contour').show()
-        #matplotlib.pyplot.show(block=True)
-        result = i.df
+    for page in pdf_file:
+        #camelot.plot(i, kind = 'contour').show() # to display areas
+        #matplotlib.pyplot.show(block=True)       # to display areas
+        result = page.df
         pd.set_option('display.max_rows', 500)
         pd.set_option('display.max_columns', 2000)
         pd.set_option('display.width', 500)
         result_dict = result.to_dict(orient = "index")
-        for i in result_dict.items(): 
-            pages_list_raw.append(i)
-    #for i in pages_list_raw:
-    #    print(i)
-    pages_dicts = take_info(pages_list_raw)
+        if read_data(result_dict.items()):
+            pages_list_raw.append(result_dict.items()) #this is list of dict_items
+    for i in pages_list_raw:
+        for line in i:
+            print(line)
+    #pages_dicts = take_info(pages_list_raw)
     return pages_dicts
+
+def read_data(dict_text): #takes whole page id dict_items format and return True/False if page contains needed tables and read amount of stocks and measure units of pages
+    """to do if amount of shares not available on recources"""
+    #if ticker.amount == 0:
+    #    find_amount(dict_text, counter, filename)
+    if check(dict_text): #checks if the page is in the list
+        return True
+    return False
 
 #TODO algo to now what actual number to get
 def take_info(pages_raw): #takes list with dicts and returns dict (info: latest number)
@@ -122,28 +119,31 @@ def take_info(pages_raw): #takes list with dicts and returns dict (info: latest 
         """
     return pages_dict
 
-def check(page): #takes lines of text and check if page is needed
+def check(page): #takes dict_items and check if page is needed
     report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
               "Консолидированный отчет о совокупном доходе", "Консолидированные отчеты о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
               "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированные отчеты об изменениях капитала",
               "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
               "Консолидированный отчет о прибыли или убытке","Консолидированные отчеты о прибылях или убытках", "Консолидированные отчеты о финансовом положении",
               "Консолидированный Отчет о финансовом положении", "Консолидированный Отчет о прибылях и убытках", "Консолидированный Отчет о совокупном доходе", 
-              "Консолидированный Отчет о движении денежных средств"
+              "Консолидированный Отчет о движении денежных средств", "Консолидированные отчеты о прибылях и убытках"
               ]
     oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
-    #print(page)
-    for stroka in page.splitlines():
-        for line in oglavlenie:
-            if " ".join(stroka.split()).count(line) >= 1:
-                return False
-        for headline in report:
-            if " ".join(stroka.split()).count(headline) >= 1:
-                #print(stroka)
-                return True
+    #for line in page:
+    #    print(line)
+    for _,line_info in page:
+        if len(line_info.values()) <= 2: # to throw away pages without tables 
+            return False
+        for column in line_info.values():
+            if column != "":
+                if ticker.measuring_unit == 0:
+                    know_measure(column)
+                for word in report:
+                    if column.lower() == word.lower():
+                        return True
     return False
 
-def collect_data(pages, measuring_unit): #takes dict and finds needed params
+def collect_data(pages): #takes dict and finds needed params
     #print("Find necessary data")
     viruchka_list = ["Выручка"]
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
@@ -152,14 +152,14 @@ def collect_data(pages, measuring_unit): #takes dict and finds needed params
             viruchka_line = pages.get(name)
             viruchka = "".join(viruchka_line.split())
             #print(measuring_unit)
-            ticker.viruchka = int(viruchka) * measuring_unit
+            ticker.viruchka = int(viruchka) * ticker.measuring_unit
             print(f"Выручка - {ticker.viruchka}")
     for name in pribyl_list:
         if pages.get(name) != None:
             pribyl_line = pages.get(name)
             pribyl = "".join(pribyl_line.split())
             #print(measuring_unit)
-            ticker.pribyl = int(pribyl) * measuring_unit
+            ticker.pribyl = int(pribyl) * ticker.measuring_unit
             print(f"Прибыль - {ticker.pribyl}")
 
 def is_here_num(line): #if line contains number
@@ -192,13 +192,11 @@ def know_notes(line): #checks if there notes
 
 def know_measure(text):
     global measure_unit
-    for line in text.splitlines():
-        #print(line)
-        for word in line.split():
-                if word in ["тыс.", "тыс", "тысячах", "thousands"]:
-                    measure_unit = 1000 #measuring unit
-                if word in ["млн.", "млн", "миллионах", "millions", "Млн"]:
-                    measure_unit = 1000000 #measuring unit
+    for word in text:
+        if word in ["тыс.", "тыс", "тысячах", "thousands"]:
+            ticker.measure_unit = 1000 #measuring unit
+        if word in ["млн.", "млн", "миллионах", "millions", "Млн"]:
+            ticker.measure_unit = 1000000 #measuring unit
         
 def print_pages(pages):
     for page in pages:
@@ -419,7 +417,7 @@ def run(url, name, method):#just run the program
     ticker.url = url
     filename = get_file(name) 
     pages = read_content(str(filename))
-    #collect_data(pages, measure_unit)
+    #collect_data(pages)
     #get_price(method)
     #analyze_data()
     #write_db()
@@ -429,7 +427,6 @@ def run(url, name, method):#just run the program
 ticker = Ticker()
 filename = str()
 pages = list()
-measure_unit = int()
 method = "t"
 
 if __name__ == "__main__":
