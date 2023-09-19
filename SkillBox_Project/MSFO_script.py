@@ -51,7 +51,7 @@ def get_file(name): # take url of the file
 def read_content(filename): #takes file and returns dict with all lines on info pages
     #print("Reading content")
     content_pages = list()
-    content_pages = camel(filename, pages= '3-20', table_areas=['50,790,550,40']) #now dict with page info
+    content_pages = camel(filename, pages= '3-20', table_areas=['50,800,550,40']) #now dict with page info
     """ In case we need to read all data"""
     #pdf_file = PyPDF2.PdfFileReader(filename, strict=False)
     #page_dohod = pdf_file.pages
@@ -65,7 +65,7 @@ def read_content(filename): #takes file and returns dict with all lines on info 
 def camel(filename, pages, table_areas, st = ""): #takes file and number of pages and returns 
     pages_list_raw = list()
     pages_dicts = dict()
-    pdf_file = camelot.read_pdf(filename, flavor = "stream", pages = pages, table_areas = table_areas, strip_text = st)
+    pdf_file = camelot.read_pdf(filename, flavor = "stream", pages = pages, table_areas = table_areas, strip_text = st, edge_tol=200)
     for page in pdf_file:
         #camelot.plot(i, kind = 'contour').show() # to display areas
         #matplotlib.pyplot.show(block=True)       # to display areas
@@ -76,10 +76,10 @@ def camel(filename, pages, table_areas, st = ""): #takes file and number of page
         result_dict = result.to_dict(orient = "index")
         if read_data(result_dict.items()):
             pages_list_raw.append(result_dict.items()) #this is list of dict_items
-    for i in pages_list_raw:
-        for line in i:
-            print(line)
-    #pages_dicts = take_info(pages_list_raw)
+    #for i in pages_list_raw:
+    #    for line in i:
+    #        print(line)
+    pages_dicts = take_info(pages_list_raw)
     return pages_dicts
 
 def read_data(dict_text): #takes whole page id dict_items format and return True/False if page contains needed tables and read amount of stocks and measure units of pages
@@ -91,33 +91,56 @@ def read_data(dict_text): #takes whole page id dict_items format and return True
     return False
 
 #TODO algo to now what actual number to get
-def take_info(pages_raw): #takes list with dicts and returns dict (info: latest number)
-    pages_dict = dict()
-    for line in pages_raw:  #line look like: [(line_number, dict)]
-        items_raw = list()
-        dictt = line[1]
-        for i in dictt.values(): #read non-empty values and ignore notes
-            if i != "" and len(i) > 2:
-                items_raw.append(i) 
-        if len(items_raw) > 1:
-            pages_dict.setdefault(items_raw[0], items_raw[1]) #todo [1:len(items_raw)] to get whole data
-        elif len(items_raw) == 1:
-            pages_dict.setdefault(items_raw[0], "")
-        """ In case I want to combine lines
-        #if len(items_raw) > 1 and mark == False:
-        #    pages_dict.setdefault(items_raw[0], items_raw[1:len(items_raw)])
-        #    continue
-        #if len(items_raw) == 1:
-        #    pages_dict.setdefault(items_raw[0], "")
-        #    mark = True
-        #    continue
-        #if len(items_raw) > 1 and mark == True:
-        #    key = pages_dict.popitem()
-        #    pages_dict.setdefault(key[0]+items_raw[0], items_raw[1:len(items_raw)])
-        #    mark = False
-        #    continue
-        """
-    return pages_dict
+def take_info(pages_list_raw): #takes list with dicts and returns dict (info: latest number)
+    pages_list = list()
+    for page in pages_list_raw: 
+        page_dict = dict()
+        raw_line = list()
+        last_line=list()
+        for number, line_info in page:  #line looks like (number, {number1:column1, number2:column2 ...})
+            line_info_list = list(line_info.values())
+            number_of_columns = len(line_info_list)
+            #print(number, line_info)
+            #print(line_info_list[0])
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0] == '':
+                raw_line.append("".join([i for i in line_info.values() if i != ""]))
+                continue
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0] == '':
+                if len(raw_line):
+                    for line in raw_line:
+                        page_dict.setdefault(line, [""] * (number_of_columns-1))
+                page_dict.setdefault(f"?{number}", line_info_list[1:])
+                raw_line.clear()
+                continue
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower() != True:
+                raw_line.append(line_info_list[0])
+                continue
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower():
+                line = raw_line.pop(-1)
+                raw_line.append(line +" " + line_info_list[0])
+                continue
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].islower():
+                for line in raw_line[:len(raw_line)-1]:
+                    page_dict.setdefault(line, [""] * (number_of_columns-1))
+                if len(raw_line):
+                    page_dict.setdefault(raw_line[-1]+" "+line_info_list[0], line_info_list[1:])
+                    last_line.append(raw_line[-1])
+                else:
+                    page_dict.setdefault(last_line[0]+" "+line_info_list[0], line_info_list[1:])
+                raw_line.clear()
+                continue
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].isupper():
+                if len(raw_line):
+                    for line in raw_line:
+                        page_dict.setdefault(line, [""] * (number_of_columns-1))
+                page_dict.setdefault(line_info_list[0], line_info_list[1:])
+                raw_line.clear()
+                last_line.clear()
+                continue
+        for key, value in page_dict.items():
+            print(key, value)
+        pages_list.append(page_dict)   
+    #return pages_list
 
 def check(page): #takes dict_items and check if page is needed
     report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
