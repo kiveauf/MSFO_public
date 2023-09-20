@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from DocsTest import docs 
 import camelot
 import pandas as pd
+import re
 #import matplotlib
                                              
 load_dotenv() #using this to get enviroment custom-made constant
@@ -93,43 +94,45 @@ def read_data(dict_text): #takes whole page id dict_items format and return True
 #TODO algo to now what actual number to get
 def take_info(pages_list_raw): #takes list with dicts and returns dict (info: latest number)
     pages_list = list()
+    
     for page in pages_list_raw: 
         page_dict = dict()
         raw_line = list()
         last_line=list()
+        """to make dicts more readable, to fix sentence"""
         for number, line_info in page:  #line looks like (number, {number1:column1, number2:column2 ...})
             line_info_list = list(line_info.values())
             number_of_columns = len(line_info_list)
             #print(number, line_info)
             #print(line_info_list[0])
-            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0] == '':
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0] == '':  #if starts with ''
                 raw_line.append("".join([i for i in line_info.values() if i != ""]))
                 continue
-            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0] == '':
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0] == '':   #if starts with ''
                 if len(raw_line):
                     for line in raw_line:
                         page_dict.setdefault(line, [""] * (number_of_columns-1))
                 page_dict.setdefault(f"?{number}", line_info_list[1:])
                 raw_line.clear()
                 continue
-            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower() != True:
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower() != True:  #if starts with upper and rest empty
                 raw_line.append(line_info_list[0])
                 continue
-            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower():
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower():  #if starts with lower or ( and rest empty
                 line = raw_line.pop(-1)
                 raw_line.append(line +" " + line_info_list[0])
                 continue
-            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].islower():
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].islower(): #if starts with lower or ( 
                 for line in raw_line[:len(raw_line)-1]:
                     page_dict.setdefault(line, [""] * (number_of_columns-1))
                 if len(raw_line):
                     page_dict.setdefault(raw_line[-1]+" "+line_info_list[0], line_info_list[1:])
-                    last_line.append(raw_line[-1])
+                    last_line.append(raw_line[-1])      # to know the start of sentence when its x: -y; -z. to combine and make xy, xz.
                 else:
                     page_dict.setdefault(last_line[0]+" "+line_info_list[0], line_info_list[1:])
                 raw_line.clear()
                 continue
-            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].isupper():
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].isupper(): #if starts with upper 
                 if len(raw_line):
                     for line in raw_line:
                         page_dict.setdefault(line, [""] * (number_of_columns-1))
@@ -137,21 +140,38 @@ def take_info(pages_list_raw): #takes list with dicts and returns dict (info: la
                 raw_line.clear()
                 last_line.clear()
                 continue
-        for key, value in page_dict.items():
-            print(key, value)
-        pages_list.append(page_dict)   
+        """to know where find the notes"""
+        for value in page_dict.values():
+            for i, line in enumerate(value):
+                if know_notes(line):
+                    page_dict.setdefault("Note", i)
+                    print(f"{i} for column {line}")
+                    break
+        """to know where find info by year"""
+        for value in page_dict.values():
+            years_dict = list()
+            for i, line in enumerate(value):
+                result = know_years(line)
+                if result != None:
+                    years_dict.setdefault(result.group(), i)
+                    print(f"{i} for column {result.group()}")
+            last_year = max([int(i) for i in years_dict.keys()]) # last year in MSFO
+            page_dict.setdefault('year', years_dict[last_year])
+        pages_list.append(page_dict)
+        for k, v in page_dict.items():
+            print(k ,v)
     #return pages_list
 
 def check(page): #takes dict_items and check if page is needed
-    report = ["Консолидированный отчет о финансовом положении", "БУХГАЛТЕРСКИЙ БАЛАНС", "Консолидированный отчет о финансовом положении",
-              "Консолидированный отчет о совокупном доходе", "Консолидированные отчеты о совокупном доходе", "ОТЧЕТ О ФИНАНСОВЫХ РЕЗУЛЬТАТАХ", "Консолидированный отчет о прибылях и убытках и прочем совокупном доходе",
-              "Консолидированный отчет о движении денежных средств", "ОТЧЕТ ОБ ИЗМЕНЕНИЯХ КАПИТАЛА", "Консолидированные отчеты об изменениях капитала",
-              "Консолидированный отчет об изменениях в капитале", "ОТЧЕТ О ДВИЖЕНИИ ДЕНЕЖНЫХ СРЕДСТВ", "Консолидированный отчет о движении денежных средств",
-              "Консолидированный отчет о прибыли или убытке","Консолидированные отчеты о прибылях или убытках", "Консолидированные отчеты о финансовом положении",
-              "Консолидированный Отчет о финансовом положении", "Консолидированный Отчет о прибылях и убытках", "Консолидированный Отчет о совокупном доходе", 
-              "Консолидированный Отчет о движении денежных средств", "Консолидированные отчеты о прибылях и убытках"
-              ]
-    oglavlenie = ["Содержание", "СОДЕРЖАНИЕ"]
+    """may be work with re???"""
+    report = {"консолидированный отчет о финансовом положении": 1, "бухгалтерский баланс": 1, "консолидированный отчет о финансовом положении": 1,
+              "консолидированный отчет о совокупном доходе": 1, "консолидированные отчеты о совокупном доходе": 1, "отчет о финансовых результатах": 1, "консолидированный отчет о прибылях и убытках и прочем совокупном доходе": 1,
+              "консолидированный отчет о движении денежных средств": 1, "отчеты об изменениях капитала": 1, "консолидированные отчеты об изменениях капитала": 1,
+              "консолидированный отчет об изменениях в капитале": 1, "отчет о движении денежных средств": 1, "консолидированные отчеты о движении денежных средств": 1,
+              "консолидированный отчет о прибыли или убытке": 1,"консолидированные отчеты о прибылях или убытках": 1, "консолидированные отчеты о финансовом положении": 1,
+              "консолидированный отчет о финансовом положении": 1, "консолидированный отчет о прибылях и убытках": 1, "консолидированный отчет о совокупном доходе": 1, 
+              "консолидированный отчет о движении денежных средств": 1, "консолидированные отчеты о прибылях и убытках": 1
+              }
     #for line in page:
     #    print(line)
     for _,line_info in page:
@@ -161,9 +181,8 @@ def check(page): #takes dict_items and check if page is needed
             if column != "":
                 if ticker.measuring_unit == 0:
                     know_measure(column)
-                for word in report:
-                    if column.lower() == word.lower():
-                        return True
+                if report.get(column.lower()):
+                    return True
     return False
 
 def collect_data(pages): #takes dict and finds needed params
@@ -185,33 +204,15 @@ def collect_data(pages): #takes dict and finds needed params
             ticker.pribyl = int(pribyl) * ticker.measuring_unit
             print(f"Прибыль - {ticker.pribyl}")
 
-def is_here_num(line): #if line contains number
-    for i in line.strip():
-        if i.isdigit() == True:
-            return True
-    return False
-
-def is_here_alnum(line): #tells what line contains
-    counter = [False, False]
-    for i in line.strip():
-        if i.isdigit() == True:
-            counter[0] = True
-        if i.isalpha() == True:
-            counter[1] = True
-    #print(counter[0], counter[1])
-    if counter[0] == True and counter[1] == True:
-        return "alnum"
-    if counter[0] == True and counter[1] == False:
-        return "digit"
-    if counter[0] == False and counter[1] == True:
-        return "alpha"
-    return "other"
-
 def know_notes(line): #checks if there notes
-    notes_list = ["Примечание", "Поясн", "Прим"]
+    notes_list = ["Примечание", "Поясн", "Прим", "Прим."]
     for word in notes_list:
         if line.find(word) != 0:
             return True
+
+def know_years(line): #checks if there years
+    years_re = r"20\d\d"
+    return re.search(years_re,line)
 
 def know_measure(text):
     global measure_unit
