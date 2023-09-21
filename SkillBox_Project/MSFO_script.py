@@ -94,11 +94,12 @@ def read_data(dict_text): #takes whole page id dict_items format and return True
 #TODO algo to now what actual number to get
 def take_info(pages_list_raw): #takes list with dicts and returns dict (info: latest number)
     pages_list = list()
-    
     for page in pages_list_raw: 
         page_dict = dict()
+        years_dict = dict()
         raw_line = list()
         last_line=list()
+        note_column = -1
         """to make dicts more readable, to fix sentence"""
         for number, line_info in page:  #line looks like (number, {number1:column1, number2:column2 ...})
             line_info_list = list(line_info.values())
@@ -144,19 +145,28 @@ def take_info(pages_list_raw): #takes list with dicts and returns dict (info: la
         for value in page_dict.values():
             for i, line in enumerate(value):
                 if know_notes(line):
-                    page_dict.setdefault("Note", i)
-                    print(f"{i} for column {line}")
+                    note_column = i
+                    #print(f"{note_column} for column {line}")
                     break
         """to know where find info by year"""
         for value in page_dict.values():
-            years_dict = list()
             for i, line in enumerate(value):
+                if len(years_dict.items()) > 3:
+                    break
                 result = know_years(line)
                 if result != None:
                     years_dict.setdefault(result.group(), i)
-                    print(f"{i} for column {result.group()}")
-            last_year = max([int(i) for i in years_dict.keys()]) # last year in MSFO
-            page_dict.setdefault('year', years_dict[last_year])
+                    #print(f"{i} for column {result.group()}")
+            if years_dict.items():
+                last_year = max([int(i) for i in years_dict.keys()]) # last year in MSFO
+        if note_column != -1:
+            page_dict.setdefault("Note", note_column)
+        else:
+            page_dict.setdefault("Note", None)
+        if len(years_dict.items()) != 0:
+            page_dict.setdefault('year', years_dict[str(last_year)])
+        else:
+            page_dict.setdefault('year', None)
         pages_list.append(page_dict)
         for k, v in page_dict.items():
             print(k ,v)
@@ -207,8 +217,9 @@ def collect_data(pages): #takes dict and finds needed params
 def know_notes(line): #checks if there notes
     notes_list = ["Примечание", "Поясн", "Прим", "Прим."]
     for word in notes_list:
-        if line.find(word) != 0:
+        if line.find(word) >= 0:
             return True
+    return False
 
 def know_years(line): #checks if there years
     years_re = r"20\d\d"
@@ -301,71 +312,6 @@ def get_key_value(items, name): #func in case line splitted into 2 lines, we get
             amount_value = "".join(amount_value.split())
             #print(amount_key, "|", amount_value)
             return (amount_key, amount_value)
-
-def correct_data(key, value):
-    i = int()
-    if value == "":
-        if is_here_alnum(key) == "alnum":
-            while i < key.count(" "):
-                whitespace = key.find(" ")
-                if alldigit(key[whitespace:len(key)]) == True:
-                    new_key = key[0:whitespace]
-                    new_value = key[whitespace:len(key)].split(" ")
-                    return (new_key, new_value[0])
-                i += 1
-    else:
-        if is_here_alnum(key) == "alpha" and alldigit(value):
-            new_value = value.split("  ")
-            return (key, new_value[0])
-
-"""
-Not used, on some case
-"""
-def edit_whitespaces(clear_text): #clearing line of text, return ???
-    print(clear_text)
-    whitespace_list = list() 
-    if len(clear_text) != 0:
-        clear_text = clear_text.strip()
-        amount_whitespaces = clear_text.count(" ")
-        start = 0
-        x = 0
-        while x != amount_whitespaces:
-            whitespace = clear_text.find(" ", start)
-            start = whitespace + 1
-            x += 1
-            if alldigit(clear_text[whitespace:len(clear_text)]) == True:
-                if clear_text[whitespace + 1] == " " and clear_text[whitespace + 2].isdigit() == True:
-                    continue
-                if clear_text[whitespace + 1] == " ":
-                    whitespace_list.append(whitespace)
-                    continue
-        clear_text = replace_whitespace(clear_text, whitespace_list)
-        print(clear_text)
-        parts = clear_text.rsplit("  ", maxsplit = 2)
-        if len(parts) == 3:
-            part1_parts = parts[0].rsplit(" ", 1)
-            if part1_parts[1].isdigit():
-                part1 = part1_parts[0] #text part of line
-            else:
-                part1 = parts[0]
-            part2 = parts[1]
-            part3 = parts[2]
-            return (part1, part2, part3) 
-        else: 
-            return (parts[0],"","")
-    else:
-        return ("","","")
-
-"""
-Not used, on some case
-"""
-def replace_whitespace(line, index_list): #remove one whitespace from double whitespaces
-    patch = list(line)
-    counter = 0
-    for i in index_list:
-        patch.pop(i - counter)
-        counter += 1
-    return "".join(patch)
 
 def alldigit(line):
     edited_line = "".join(line.split())
