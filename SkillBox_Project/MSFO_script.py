@@ -37,7 +37,7 @@ class Ticker():
         self.pe = float()
         self.ps = float()
     def __iter__(self):
-        for i in self.__dict__.keys():
+        for i in self.__dict__.items():
             yield i
     
 def get_file(name): # take url of the file
@@ -104,6 +104,8 @@ def take_info(pages_list_raw): #takes list with dicts and returns dict (info: la
         for number, line_info in page:  #line looks like (number, {number1:column1, number2:column2 ...})
             line_info_list = list(line_info.values())
             number_of_columns = len(line_info_list)
+            if ticker.measuring_unit == 0:  #to know measuring unit
+                know_measure(line_info_list)
             #print(number, line_info)
             #print(line_info_list[0])
             if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0] == '':  #if starts with ''
@@ -170,7 +172,7 @@ def take_info(pages_list_raw): #takes list with dicts and returns dict (info: la
         pages_list.append(page_dict)
         for k, v in page_dict.items():
             print(k ,v)
-    #return pages_list
+    return pages_list
 
 def check(page): #takes dict_items and check if page is needed
     """may be work with re???"""
@@ -189,30 +191,30 @@ def check(page): #takes dict_items and check if page is needed
             return False
         for column in line_info.values():
             if column != "":
-                if ticker.measuring_unit == 0:
-                    know_measure(column)
+                
                 if report.get(column.lower()):
                     return True
     return False
 
-def collect_data(pages): #takes dict and finds needed params
+def collect_data(pages): #takes list of dicts and finds needed params
     #print("Find necessary data")
     viruchka_list = ["Выручка"]
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
-    for name in viruchka_list:
-        if pages.get(name) != None:
-            viruchka_line = pages.get(name)
-            viruchka = "".join(viruchka_line.split())
-            #print(measuring_unit)
-            ticker.viruchka = int(viruchka) * ticker.measuring_unit
-            print(f"Выручка - {ticker.viruchka}")
-    for name in pribyl_list:
-        if pages.get(name) != None:
-            pribyl_line = pages.get(name)
-            pribyl = "".join(pribyl_line.split())
-            #print(measuring_unit)
-            ticker.pribyl = int(pribyl) * ticker.measuring_unit
-            print(f"Прибыль - {ticker.pribyl}")
+    for page in pages:
+        for name in viruchka_list:
+            if page.get(name) != None:
+                viruchka_str = page.get(name)[page['year']]
+                viruchka = "".join(viruchka_str.split(","))
+                print(ticker.measuring_unit)
+                ticker.viruchka = int(viruchka) * ticker.measuring_unit
+                print(f"Выручка - {ticker.viruchka}")
+        for name in pribyl_list:
+            if page.get(name) != None:
+                pribyl_str = page.get(name)[page['year']]
+                pribyl = "".join(pribyl_str.split(","))
+                print(ticker.measuring_unit)
+                ticker.pribyl = int(pribyl) * ticker.measuring_unit
+                print(f"Прибыль - {ticker.pribyl}")
 
 def know_notes(line): #checks if there notes
     notes_list = ["Примечание", "Поясн", "Прим", "Прим."]
@@ -226,12 +228,17 @@ def know_years(line): #checks if there years
     return re.search(years_re,line)
 
 def know_measure(text):
-    global measure_unit
-    for word in text:
-        if word in ["тыс.", "тыс", "тысячах", "thousands"]:
-            ticker.measure_unit = 1000 #measuring unit
-        if word in ["млн.", "млн", "миллионах", "millions", "Млн"]:
-            ticker.measure_unit = 1000000 #measuring unit
+    thousands = ["тыс.", "тыс", "тысячах", "thousands"]
+    millions = ["млн.", "млн", "миллионах", "millions", "Млн"]
+    for column in [i for i in text if i != ""]:
+        for word in thousands:
+            if column.find(word) >= 0:
+                ticker.measuring_unit = 1000 #measuring unit
+                break
+        for word in millions:
+            if column.find(word) >= 0:
+                ticker.measuring_unit = 1000000 #measuring unit
+                break
         
 def print_pages(pages):
     for page in pages:
@@ -249,7 +256,8 @@ def get_price(method):
     if method == "t":
         tinkoff_api()
 
-def parser(): #using selenium to get all info because of javascript
+"""to get price and amount of shares from the internet. Using selenium to get all info because of javascript"""
+def parser(): 
     #print("Getting price and amount of shares")
     site_url = f"https://bcs-express.ru/kotirovki-i-grafiki/{ticker.name}"
     service = Service(executable_path='C:\Program Files\ChromeDriver\chromedriver.exe')
@@ -259,67 +267,53 @@ def parser(): #using selenium to get all info because of javascript
     page.implicitly_wait(2) # just to wait until page will load 
     page.get(site_url)
     price_sel = page.find_element(By.CLASS_NAME, 'Here.EWHp.Dlhk').text
+    print(price_sel)
     ticker.price = float(price_sel.replace(" ", "").replace(",", "."))
+    amount_sel = page.find_elements(By.CLASS_NAME, 'rEKY')
+    print(amount_sel)
+    ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
     page.quit()
-    #amount_sel = page.find_elements(By.CLASS_NAME, 'Yai9')
-    #ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
 
-def find_amount(text, counter, filename): #takes text and find amount of shares 
-    amount_key = str()
-    amount_value = int()
-    measure_unit_thousands_list = ["в тысячах", "тысяч"]
-    measure_unit_mil_list = ["в млн", "млн"]
-    shares_amount_list = ["Средневзвешенное количество выпущенных обыкновенных акций", "Средневзвешенное количество обыкновенных акций",
-                          "Средневзвешенное количество акций"]
-    for line in text.splitlines():
-        line = line.strip()
-        #print(line)
-        if len(line) != 0:
-            for name in shares_amount_list:
-                if line.count(name) >= 1:
-                    #print(line)
-                    amount_dict = camel(filename, str(counter), ['90,800,550,40'], "\n") #dict with info on the page
-                    items = list(amount_dict.items()) #making list to have indexes in case when info splitted into 2 lines
-                    amount_key, amount_value = get_key_value(items, name) 
-                    for mu in measure_unit_thousands_list:
-                        if amount_key.count(mu) > 0:
-                            ticker.amount = float(amount_value) * 1000       
-                            #print(f"Количество акций - {ticker.amount} шт.")
-                            return True
-                    for mu in measure_unit_mil_list:
-                        if amount_key.count(mu) > 0:
-                            ticker.amount = float(amount_value) * 1000000
-                            #print(f"Количество акций - {ticker.amount} шт.")
-                            return True
-                    ticker.amount = float(amount_value)
-                    #print(f"Количество акций - {ticker.amount} шт.")
-                    return True
 
-def get_key_value(items, name): #func in case line splitted into 2 lines, we get next line
-    for key,value in items:
-        #print(key, value)
-        if key.count(name) > 0:
-            amount_key = key
-            amount_value = value
-            #print(amount_key, amount_value)
-            if amount_value == "": 
-                index_actual_pair = items.index((key, value))
-                amount_tuple = items[index_actual_pair + 1] #tuple (info, data) from next line
-                amount_value = amount_tuple[1].split("  ")[0]
-                amount_key = amount_tuple[0]
-                amount_value = amount_tuple[1]
-            amount_key, amount_value = correct_data(amount_key, amount_value) #check if key = info and values = numbers and all correct
-            amount_value = "".join(amount_value.split())
-            #print(amount_key, "|", amount_value)
-            return (amount_key, amount_value)
+'''to get amount of shares from pdf'''
+#def find_amount(text, counter, filename): #takes text and find amount of shares 
+#    amount_key = str()
+#    amount_value = int()
+#    measure_unit_thousands_list = ["в тысячах", "тысяч"]
+#    measure_unit_mil_list = ["в млн", "млн"]
+#    shares_amount_list = ["Средневзвешенное количество выпущенных обыкновенных акций", "Средневзвешенное количество обыкновенных акций",
+#                          "Средневзвешенное количество акций"]
+#    for line in text.splitlines():
+#        line = line.strip()
+#        #print(line)
+#        if len(line) != 0:
+#            for name in shares_amount_list:
+#                if line.count(name) >= 1:
+#                    #print(line)
+#                    amount_dict = camel(filename, str(counter), ['90,800,550,40'], "\n") #dict with info on the page
+#                    items = list(amount_dict.items()) #making list to have indexes in case when info splitted into 2 lines
+#                    amount_key, amount_value = get_key_value(items, name) 
+#                    for mu in measure_unit_thousands_list:
+#                        if amount_key.count(mu) > 0:
+#                            ticker.amount = float(amount_value) * 1000       
+#                            #print(f"Количество акций - {ticker.amount} шт.")
+#                            return True
+#                    for mu in measure_unit_mil_list:
+#                        if amount_key.count(mu) > 0:
+#                            ticker.amount = float(amount_value) * 1000000
+#                            #print(f"Количество акций - {ticker.amount} шт.")
+#                            return True
+#                    ticker.amount = float(amount_value)
+#                    #print(f"Количество акций - {ticker.amount} шт.")
+#                    return True
 
-def alldigit(line):
-    edited_line = "".join(line.split())
-    edited_line = edited_line.replace("(","")
-    edited_line = edited_line.replace(")","")
-    if edited_line.isdigit() == True:
-        return True
-    return False
+#def alldigit(line):
+#    edited_line = "".join(line.split())
+#    edited_line = edited_line.replace("(","")
+#    edited_line = edited_line.replace(")","")
+#    if edited_line.isdigit() == True:
+#        return True
+#    return False
 
 def tinkoff_api():
     ticker_data = str()
@@ -328,14 +322,14 @@ def tinkoff_api():
     token = os.environ["TOKEN"]
     with Client(token) as client:
         ticker_data = client.instruments.find_instrument(query = ticker.name).instruments
-        #print(ticker_data)
+        print(ticker_data)
         for i in ticker_data:
             if i.ticker.lower() == ticker.name:
                 ticker_data_choice = i
         ticker_price_response = client.market_data.get_last_prices(figi = [ticker_data_choice.figi])
         ticker_price_quotation = ticker_price_response.last_prices[0].price
         ticker.price = float(str(ticker_price_quotation.units) + "." + str(ticker_price_quotation.nano))
-        #print(ticker_price)
+        print(ticker.price)
 
 def write_db():
     if ticker.pe != 0 and ticker.ps != 0:
@@ -386,18 +380,18 @@ def timetrack(func):
 def run(url, name, method):#just run the program
     ticker.url = url
     filename = get_file(name) 
-    pages = read_content(str(filename))
-    #collect_data(pages)
-    #get_price(method)
-    #analyze_data()
+    pages = read_content(filename)
+    collect_data(pages)
+    get_price(method)
+    analyze_data()
     #write_db()
-    #print_data()
+    print_data()
     #return (ticker.pe, ticker.ps)
 
 ticker = Ticker()
 filename = str()
 pages = list()
-method = "t"
+method = "p"
 
 if __name__ == "__main__":
     name = "mtss"#input("Type ticker name: ")
