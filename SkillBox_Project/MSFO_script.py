@@ -361,14 +361,19 @@ def write_db_mysql():
 
 """using postgresql"""
 def write_db_postsql():
-    
-    conn = psql.connect("dbname=test, user=postgres")
+    conn = psql.connect("dbname=msfo_db user=kirill password = 12345")
     cur = conn.cursor()
     # Execute a query
-    cur.execute("SELECT * FROM my_data")
+    cur.execute("INSERT into ticker_info (url, name, pribyl, viruchka, price, amount, measuring_unit, pe, ps) VALUES \
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s)",\
+                (ticker.url, ticker.name, ticker.pribyl, ticker.viruchka, ticker.price, ticker.amount, ticker.measuring_unit, ticker.pe, ticker.ps))
     # Retrieve query results
+    cur.execute("select * from ticker_info")
     records = cur.fetchall()
-    pass
+    print(records)
+    conn.commit()
+    cur.close()
+    conn.close()
 
 def print_db(line):
     for i in line:
@@ -399,8 +404,8 @@ def run(url, name, method):#just run the program
     get_price(method)
     analyze_data()
     #write_db_mysql()
-    #write_db_postsql()
     print_data()
+    write_db_postsql()
     #return (ticker.pe, ticker.ps)
 
 ticker = Ticker()
@@ -409,7 +414,7 @@ pages = list()
 method = "p"
 
 if __name__ == "__main__":
-    name = "mtss"#input("Type ticker name: ")
+    name = 'mtss'#input("Type ticker name: ")
     run(docs[1], name, method)
     
 
