@@ -13,6 +13,7 @@ from selenium.webdriver.common.by import By
 import os
 from tinkoff.invest import Client
 import mysql.connector as sql
+import psycopg2 as psql
 from dotenv import load_dotenv
 from DocsTest import docs 
 import camelot
@@ -36,6 +37,7 @@ class Ticker():
         self.measuring_unit = int()
         self.pe = float()
         self.ps = float()
+        self.pages = list()
     def __iter__(self):
         for i in self.__dict__.items():
             yield i
@@ -46,7 +48,6 @@ def get_file(name): # take url of the file
     filename = f"{ticker.name}_MSFO.pdf"
     with open(file = filename, mode = 'wb') as f:
         f.write(file.content)
-    print(ticker.name)
     return filename
 
 def read_content(filename): #takes file and returns dict with all lines on info pages
@@ -81,6 +82,7 @@ def camel(filename, pages, table_areas, st = ""): #takes file and number of page
     #    for line in i:
     #        print(line)
     pages_dicts = take_info(pages_list_raw)
+    ticker.pages = pages_dicts
     return pages_dicts
 
 def read_data(dict_text): #takes whole page id dict_items format and return True/False if page contains needed tables and read amount of stocks and measure units of pages
@@ -170,8 +172,8 @@ def take_info(pages_list_raw): #takes list with dicts and returns dict (info: la
         else:
             page_dict.setdefault('year', None)
         pages_list.append(page_dict)
-        for k, v in page_dict.items():
-            print(k ,v)
+        #for k, v in page_dict.items():
+        #    print(k ,v)
     return pages_list
 
 def check(page): #takes dict_items and check if page is needed
@@ -205,16 +207,16 @@ def collect_data(pages): #takes list of dicts and finds needed params
             if page.get(name) != None:
                 viruchka_str = page.get(name)[page['year']]
                 viruchka = "".join(viruchka_str.split(","))
-                print(ticker.measuring_unit)
+                #print(ticker.measuring_unit)
                 ticker.viruchka = int(viruchka) * ticker.measuring_unit
-                print(f"Выручка - {ticker.viruchka}")
+                #print(f"Выручка - {ticker.viruchka}")
         for name in pribyl_list:
             if page.get(name) != None:
                 pribyl_str = page.get(name)[page['year']]
                 pribyl = "".join(pribyl_str.split(","))
-                print(ticker.measuring_unit)
+                #print(ticker.measuring_unit)
                 ticker.pribyl = int(pribyl) * ticker.measuring_unit
-                print(f"Прибыль - {ticker.pribyl}")
+                #print(f"Прибыль - {ticker.pribyl}")
 
 def know_notes(line): #checks if there notes
     notes_list = ["Примечание", "Поясн", "Прим", "Прим."]
@@ -267,10 +269,10 @@ def parser():
     page.implicitly_wait(2) # just to wait until page will load 
     page.get(site_url)
     price_sel = page.find_element(By.CLASS_NAME, 'Here.EWHp.Dlhk').text
-    print(price_sel)
+    #print(price_sel)
     ticker.price = float(price_sel.replace(" ", "").replace(",", "."))
     amount_sel = page.find_elements(By.CLASS_NAME, 'rEKY')
-    print(amount_sel)
+    #print(amount_sel)
     ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
     page.quit()
 
@@ -331,7 +333,8 @@ def tinkoff_api():
         ticker.price = float(str(ticker_price_quotation.units) + "." + str(ticker_price_quotation.nano))
         print(ticker.price)
 
-def write_db():
+"""using mysql"""
+def write_db_mysql():
     if ticker.pe != 0 and ticker.ps != 0:
         try:
             with sql.connect(host="127.0.0.1", user = "Kirill", #input("Type user name: "), 
@@ -355,6 +358,17 @@ def write_db():
                         print_db(line)
         except sql.Error as e:
             print(e)
+
+"""using postgresql"""
+def write_db_postsql():
+    
+    conn = psql.connect("dbname=test, user=postgres")
+    cur = conn.cursor()
+    # Execute a query
+    cur.execute("SELECT * FROM my_data")
+    # Retrieve query results
+    records = cur.fetchall()
+    pass
 
 def print_db(line):
     for i in line:
@@ -384,7 +398,8 @@ def run(url, name, method):#just run the program
     collect_data(pages)
     get_price(method)
     analyze_data()
-    #write_db()
+    #write_db_mysql()
+    #write_db_postsql()
     print_data()
     #return (ticker.pe, ticker.ps)
 
