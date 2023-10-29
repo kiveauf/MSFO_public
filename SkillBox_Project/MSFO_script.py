@@ -275,48 +275,7 @@ def parser():
     #print(amount_sel)
     ticker.amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
     page.quit()
-
-
-'''to get amount of shares from pdf'''
-#def find_amount(text, counter, filename): #takes text and find amount of shares 
-#    amount_key = str()
-#    amount_value = int()
-#    measure_unit_thousands_list = ["в тысячах", "тысяч"]
-#    measure_unit_mil_list = ["в млн", "млн"]
-#    shares_amount_list = ["Средневзвешенное количество выпущенных обыкновенных акций", "Средневзвешенное количество обыкновенных акций",
-#                          "Средневзвешенное количество акций"]
-#    for line in text.splitlines():
-#        line = line.strip()
-#        #print(line)
-#        if len(line) != 0:
-#            for name in shares_amount_list:
-#                if line.count(name) >= 1:
-#                    #print(line)
-#                    amount_dict = camel(filename, str(counter), ['90,800,550,40'], "\n") #dict with info on the page
-#                    items = list(amount_dict.items()) #making list to have indexes in case when info splitted into 2 lines
-#                    amount_key, amount_value = get_key_value(items, name) 
-#                    for mu in measure_unit_thousands_list:
-#                        if amount_key.count(mu) > 0:
-#                            ticker.amount = float(amount_value) * 1000       
-#                            #print(f"Количество акций - {ticker.amount} шт.")
-#                            return True
-#                    for mu in measure_unit_mil_list:
-#                        if amount_key.count(mu) > 0:
-#                            ticker.amount = float(amount_value) * 1000000
-#                            #print(f"Количество акций - {ticker.amount} шт.")
-#                            return True
-#                    ticker.amount = float(amount_value)
-#                    #print(f"Количество акций - {ticker.amount} шт.")
-#                    return True
-
-#def alldigit(line):
-#    edited_line = "".join(line.split())
-#    edited_line = edited_line.replace("(","")
-#    edited_line = edited_line.replace(")","")
-#    if edited_line.isdigit() == True:
-#        return True
-#    return False
-
+ 
 def tinkoff_api():
     ticker_data = str()
     ticker_price_quotation = str()
@@ -359,6 +318,26 @@ def write_db_mysql():
         except sql.Error as e:
             print(e)
 
+"""To check if its data available already in db"""
+def read_db_postsql(name):
+    pe = float()
+    ps = float()
+    name_script = name
+    conn = psql.connect("dbname=msfo_db user=kirill password = 12345")
+    cur = conn.cursor()
+    cur.execute("select * from ticker_info where name = %s", (name_script,))
+    result = cur.fetchone()
+    print(result)
+    if result != None:
+        ps = float(result[-1])
+        pe = float(result[-2])        
+        print("Data is already available")
+        print(pe, ps)
+        return pe, ps
+    else:
+        return None
+
+
 """using postgresql"""
 def write_db_postsql():
     conn = psql.connect("dbname=msfo_db user=kirill password = 12345")
@@ -396,7 +375,10 @@ def timetrack(func):
     return count_time
 
 @timetrack
-def run(url, name, method):#just run the program
+def run(url, name, method = 'p'):#just run the program
+    check = read_db_postsql(name) 
+    if check:
+        return check
     ticker.url = url
     filename = get_file(name) 
     pages = read_content(filename)
@@ -406,15 +388,14 @@ def run(url, name, method):#just run the program
     #write_db_mysql()
     print_data()
     write_db_postsql()
-    #return (ticker.pe, ticker.ps)
+    return (ticker.pe, ticker.ps)
 
 ticker = Ticker()
 filename = str()
 pages = list()
-method = "p"
 
 if __name__ == "__main__":
-    name = 'mtss'#input("Type ticker name: ")
-    run(docs[1], name, method)
+    name = 'mtss'
+    run(docs[1], name)
     
 
