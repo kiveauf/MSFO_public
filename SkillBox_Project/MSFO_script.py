@@ -19,11 +19,25 @@ from DocsTest import docs
 import camelot
 import pandas as pd
 import re
-#import matplotlib
+import sqlalchemy
                                              
 load_dotenv() #using this to get enviroment custom-made constant
 logger = logging.getLogger("PyPDF2")
 logger.setLevel(logging.CRITICAL)
+
+ticker_info = sqlalchemy.Table(
+    'ticker_info',
+    sqlalchemy.MetaData(),
+    sqlalchemy.Column(name='url', type_=sqlalchemy.Text, primary_key=True),
+    sqlalchemy.Column(name='name', type_=sqlalchemy.VARCHAR(4), nullable=False),
+    sqlalchemy.Column(name='pribyl', type_=sqlalchemy.Numeric(25,5)),
+    sqlalchemy.Column(name='viruchka', type_=sqlalchemy.Numeric(25,5)),
+    sqlalchemy.Column(name='price', type_=sqlalchemy.Numeric(25,5)),
+    sqlalchemy.Column(name='amount', type_=sqlalchemy.Numeric(25,5)),
+    sqlalchemy.Column(name='measuring_unit', type_=sqlalchemy.Integer),
+    sqlalchemy.Column(name='pe', type_=sqlalchemy.Numeric(5,2)),
+    sqlalchemy.Column(name='ps', type_=sqlalchemy.Numeric(5,2))
+    )
 
 class Ticker():
     def __init__(self, url, name):
@@ -330,7 +344,7 @@ def write_db_postsql(ticker):
     cur.close()
     conn.close() 
 
-def read_db_postsql():
+def read_all_db_postsql():
     conn = psql.connect(os.environ["PSQL"])
     cur = conn.cursor()
     cur.execute("select * from ticker_info")
@@ -343,6 +357,38 @@ def print_db_mysql(line):
     for i in line:
         print(f'{i:<18}',end = "")
     print(end="\n")
+
+def check_db_sqlalchemy(url, table):
+    engine = sqlalchemy.create_engine(os.environ["SQLAlchemy"])
+    with engine.connect() as conn:
+        query = sqlalchemy.select(table).where(table.columns.url == url)
+        result = conn.execute(query).fetchone()
+        if result != None:
+            ps = float(result[-1])
+            pe = float(result[-2])        
+            print("Data is already available")
+            print(pe, ps)
+            return pe, ps
+        else:
+            return None
+
+def write_db_sqlalchemy(ticker, table):
+    engine = sqlalchemy.create_engine(os.environ["SQLAlchemy"])
+    with engine.connect() as conn:
+        query = sqlalchemy.insert(table).values(url = ticker.url, name = ticker.name, pribyl = ticker.pribyl, 
+                                                viruchka = ticker.viruchka, price = ticker.price, amount = ticker.amount, 
+                                                measuring_unit = ticker.measuring_unit, pe = ticker.pe, ps = ticker.ps)
+        conn.execute(query)
+        conn.commit()
+
+def read_all_db_sqlalchemy(table):
+    engine = sqlalchemy.create_engine(os.environ["SQLAlchemy"])
+    with engine.connect() as conn:
+        query = sqlalchemy.select(table)
+        result = conn.execute(query).fetchall()
+        for i in result:
+            print(i)
+        return result
 
 def analyze_data(ticker): #just do the math
     ticker.capitalization = ticker.price * ticker.amount
@@ -363,7 +409,7 @@ def timetrack(func):
 @timetrack
 def run(url, name, method = 'p'):#just run the program
     ticker = Ticker(url, name)
-    check = check_db_postsql(ticker.url) 
+    check = check_db_sqlalchemy(ticker.url, ticker_info) 
     if check:
         return check
     file = get_file(ticker.url, ticker.name) 
@@ -373,7 +419,8 @@ def run(url, name, method = 'p'):#just run the program
     ticker.price, ticker.amount = get_stock_exchange_price(ticker.name, method)
     ticker.pe, ticker.ps = analyze_data(ticker)
     ticker.print_ticker_data()
-    write_db_postsql(ticker)
+    write_db_sqlalchemy(ticker, ticker_info)
+    print(read_all_db_sqlalchemy(ticker_info))
     return (ticker.pe, ticker.ps)
 
 if __name__ == "__main__":
