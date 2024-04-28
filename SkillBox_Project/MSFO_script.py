@@ -3,27 +3,26 @@ script to collect and analyze data from msfo sheets and real stock price
 use python 3.9
 """
 
-import PyPDF2
+import time
+import os
+import re
 import requests
 import logging
-import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-import os
 from tinkoff.invest import Client
 import mysql.connector as sql
 import psycopg2 as psql
 from dotenv import load_dotenv
-from DocsTest import docs 
 import camelot
 import pandas as pd
-import re
 import sqlalchemy
-                                             
-load_dotenv() #using this to get enviroment custom-made constant
-logger = logging.getLogger("PyPDF2")
-logger.setLevel(logging.CRITICAL)
+from DocsTest import docs
+
+#using this to get enviroment custom-made constant                                             
+load_dotenv()
+
 
 ticker_info = sqlalchemy.Table(
     'ticker_info',
@@ -38,6 +37,7 @@ ticker_info = sqlalchemy.Table(
     sqlalchemy.Column(name='pe', type_=sqlalchemy.Numeric(5,2)),
     sqlalchemy.Column(name='ps', type_=sqlalchemy.Numeric(5,2))
     )
+
 
 class Ticker():
     def __init__(self, url, name):
@@ -57,20 +57,28 @@ class Ticker():
         print("__print_ticker_data()___")
         for i in self.__dict__.items():
             print(i)
-    
-def get_file(url, name): # take url of the file
+ 
+
+#take url of the file            
+def get_file(url, name): 
     file = requests.get(url)
     filename = f"{name.lower()}_MSFO.pdf"
     with open(file = filename, mode = 'wb') as f:
         f.write(file.content)
+    
     return filename
 
-def read_content(filename): #takes file and returns dict with all lines on info pages
+
+#takes file and returns dict with all lines on info pages
+def read_content(filename): 
     #print("Reading content")
     content_pages_raw = camel(filename, pages= '3-20', table_areas=['50,800,550,40']) #now dict with page info
+   
     return content_pages_raw
 
-def camel(filename, pages, table_areas, st = ""): #takes file and number of pages and returns 
+
+#takes file and number of pages and returns 
+def camel(filename, pages, table_areas, st = ""):
     pages_list_raw = list()
     pdf_file = camelot.read_pdf(filename, flavor = "stream", pages = pages, table_areas = table_areas, strip_text = st, edge_tol=200)
     for page in pdf_file:
@@ -83,31 +91,45 @@ def camel(filename, pages, table_areas, st = ""): #takes file and number of page
         result_dict = result.to_dict(orient = "index")
         if check_data(result_dict.items()):
             pages_list_raw.append(result_dict.items()) #this is list of dict_items
+    
     return pages_list_raw
 
-def check_data(page): #takes dict_items and check if page is needed
-    """may be work with re???"""
-    report = {"консолидированный отчет о финансовом положении": 1, "бухгалтерский баланс": 1, "консолидированный отчет о финансовом положении": 1,
-              "консолидированный отчет о совокупном доходе": 1, "консолидированные отчеты о совокупном доходе": 1, "отчет о финансовых результатах": 1, "консолидированный отчет о прибылях и убытках и прочем совокупном доходе": 1,
-              "консолидированный отчет о движении денежных средств": 1, "отчеты об изменениях капитала": 1, "консолидированные отчеты об изменениях капитала": 1,
-              "консолидированный отчет об изменениях в капитале": 1, "отчет о движении денежных средств": 1, "консолидированные отчеты о движении денежных средств": 1,
-              "консолидированный отчет о прибыли или убытке": 1,"консолидированные отчеты о прибылях или убытках": 1, "консолидированные отчеты о финансовом положении": 1,
-              "консолидированный отчет о финансовом положении": 1, "консолидированный отчет о прибылях и убытках": 1, "консолидированный отчет о совокупном доходе": 1, 
-              "консолидированный отчет о движении денежных средств": 1, "консолидированные отчеты о прибылях и убытках": 1
-              }
+
+#takes dict_items and check if page is needed
+def check_data(page): 
+    #may be work with re???
+    report = {"консолидированный отчет о финансовом положении": 1, "бухгалтерский баланс": 1,
+             "консолидированный отчет о финансовом положении": 1,"консолидированный отчет о совокупном доходе": 1, 
+             "консолидированные отчеты о совокупном доходе": 1, "отчет о финансовых результатах": 1, 
+             "консолидированный отчет о прибылях и убытках и прочем совокупном доходе": 1,
+             "консолидированный отчет о движении денежных средств": 1, "отчеты об изменениях капитала": 1, 
+             "консолидированные отчеты об изменениях капитала": 1, "консолидированный отчет об изменениях в капитале": 1, 
+             "отчет о движении денежных средств": 1, "консолидированные отчеты о движении денежных средств": 1,
+             "консолидированный отчет о прибыли или убытке": 1,"консолидированные отчеты о прибылях или убытках": 1,
+             "консолидированные отчеты о финансовом положении": 1, "консолидированный отчет о финансовом положении": 1, 
+             "консолидированный отчет о прибылях и убытках": 1, "консолидированный отчет о совокупном доходе": 1, 
+             "консолидированный отчет о движении денежных средств": 1, "консолидированные отчеты о прибылях и убытках": 1,
+             }
     #for line in page:
     #    print(line)
     for _,line_info in page:
-        if len(line_info.values()) <= 2: # to throw away pages without tables 
+        #to throw away pages without tables
+        if len(line_info.values()) <= 2:  
             return False
         for column in line_info.values():
             if column != "":
                 if report.get(column.lower()):
+                    
                     return True
+    
     return False
 
+
 #TODO algo to now what actual number to get
-def identify_info(ticker, pages_list_raw): #takes list with dicts and returns list of dicts. in dict info has format (info: [notes, year1, year2 ...]). Dict has 'Note' and 'LatestYear' keys to know in what column note is placed and where latest year is placed 
+#takes list with dicts and returns list of dicts. in dict info has format 
+#(info: [notes, year1, year2 ...]). Dict has 'Note' and 'LatestYear' keys 
+#to know in what column note is placed and where latest year is placed 
+def identify_info(ticker, pages_list_raw): 
     pages_list = list()
     for page in pages_list_raw: 
         page_dict = dict()
@@ -115,7 +137,7 @@ def identify_info(ticker, pages_list_raw): #takes list with dicts and returns li
         raw_line = list()
         last_line=list()
         note_column = -1
-        """to make dicts more readable, to fix sentence"""
+        #to make dicts more readable, to fix sentence
         for number, line_info in page:  #line looks like (number, {number1:column1, number2:column2 ...})
             line_info_list = list(line_info.values())
             number_of_columns = len(line_info_list)
@@ -123,34 +145,41 @@ def identify_info(ticker, pages_list_raw): #takes list with dicts and returns li
                 know_measure(ticker, line_info_list)
             #print(number, line_info)
             #print(line_info_list[0])
-            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0] == '':  #if starts with ''
+            #if starts with ''
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0] == '':  
                 raw_line.append("".join([i for i in line_info.values() if i != ""]))
                 continue
-            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0] == '':   #if starts with ''
+            #if starts with ''
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0] == '':   
                 if len(raw_line):
                     for line in raw_line:
                         page_dict.setdefault(line, [""] * (number_of_columns-1))
                 page_dict.setdefault(f"{number}", line_info_list[1:])
                 raw_line.clear()
                 continue
-            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower() != True:  #if starts with upper and rest empty
+            #if starts with upper and the rest of string empty
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower() != True:  
                 raw_line.append(line_info_list[0])
                 continue
-            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower():  #if starts with lower or ( and rest empty
+            #if starts with lower or ( and the rest of string empty
+            if len([i for i in line_info.values() if i != ""]) == 1 and line_info_list[0][0].islower():  
                 line = raw_line.pop(-1)
                 raw_line.append(line +" " + line_info_list[0])
                 continue
-            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].islower(): #if starts with lower or ( 
+            #if starts with lower or ( 
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].islower(): 
                 for line in raw_line[:len(raw_line)-1]:
                     page_dict.setdefault(line, [""] * (number_of_columns-1))
                 if len(raw_line):
                     page_dict.setdefault(raw_line[-1]+" "+line_info_list[0], line_info_list[1:])
-                    last_line.append(raw_line[-1])      # to know the start of sentence when its x: -y; -z. to combine and make xy, xz.
+                    #to know the start of sentence when its x: -y; -z. to combine and make xy, xz.
+                    last_line.append(raw_line[-1])      
                 else:
                     page_dict.setdefault(last_line[0]+" "+line_info_list[0], line_info_list[1:])
                 raw_line.clear()
                 continue
-            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].isupper(): #if starts with upper 
+            #if starts with upper
+            if len([i for i in line_info.values() if i != ""]) > 1 and line_info_list[0][0].isupper():  
                 if len(raw_line):
                     for line in raw_line:
                         page_dict.setdefault(line, [""] * (number_of_columns-1))
@@ -158,14 +187,14 @@ def identify_info(ticker, pages_list_raw): #takes list with dicts and returns li
                 raw_line.clear()
                 last_line.clear()
                 continue
-        """to know where find the notes"""
+        #to know where find the notes
         for value in page_dict.values():
             for i, line in enumerate(value):
                 if know_notes(line):
                     note_column = i
                     #print(f"{note_column} for column {line}")
                     break
-        """to know where find info by year"""
+        #to know where find info by year
         for value in page_dict.values():
             for i, line in enumerate(value):
                 if len(years_dict.items()) > 3:
@@ -186,10 +215,13 @@ def identify_info(ticker, pages_list_raw): #takes list with dicts and returns li
             page_dict.setdefault('LatestYear', None)
         pages_list.append(page_dict)
         #for k, v in page_dict.items():
-        #    print(k ,v)
-    return pages_list
+        #    print(k ,v) 
 
-def collect_data(ticker): #takes list of dicts and finds needed params
+    return pages_list
+     
+
+#takes list of dicts and finds needed params
+def collect_data(ticker): 
     #print("Find necessary data")
     viruchka_list = ["Выручка"]
     pribyl_list = ["Прибыль за год", "Чистая прибыль отчетного периода", "Прибыль за отчетный год"]
@@ -197,7 +229,8 @@ def collect_data(ticker): #takes list of dicts and finds needed params
         if ticker.viruchka == 0:
             for name in viruchka_list:
                 if page.get(name) != None:
-                    latest_year = page['LatestYear'] #to know in what column in value-list latest year is placed (info: [notes, year1, year2 ...])
+                    #to know in what column in value-list latest year is placed (info: [notes, year1, year2 ...])
+                    latest_year = page['LatestYear'] 
                     viruchka_str = page.get(name)[latest_year]
                     viruchka_raw = "".join(viruchka_str.split(","))
                     #print(ticker.measuring_unit)
@@ -213,19 +246,29 @@ def collect_data(ticker): #takes list of dicts and finds needed params
                     pribyl = int(pribyl_raw) * ticker.measuring_unit
                     #print(f"Прибыль - {ticker.pribyl}")
                     break
+    
     return viruchka, pribyl
 
-def know_notes(line): #checks if there notes
+
+#checks if there notes
+def know_notes(line): 
     notes_list = ["Примечание", "Поясн", "Прим", "Прим."]
     for word in notes_list:
         if line.find(word) >= 0:
+            
             return True
+    
     return False
 
-def know_years(line): #checks if there years
+
+#checks if there years
+def know_years(line): 
     years_re = r"20\d\d"
+   
     return re.search(years_re,line)
 
+
+#to know in what units info is
 def know_measure(ticker, text):
     thousands = ["тыс.", "тыс", "тысячах", "thousands"]
     millions = ["млн.", "млн", "миллионах", "millions", "Млн"]
@@ -238,7 +281,9 @@ def know_measure(ticker, text):
             if column.find(word) >= 0:
                 ticker.measuring_unit = 1000000 #measuring unit
                 break
-        
+
+
+#just to print info in selected pages        
 def print_pages(pages):
     print("___print_pages()_____")
     for page in pages:
@@ -247,14 +292,17 @@ def print_pages(pages):
             print("____________________________")
 
 
+#to choose method and collect info about actual price
 def get_stock_exchange_price(name, method):
     if method == "p":
         price, amount = parser(name)
     if method == "t":
         price, amount = tinkoff_api(name)
+    
     return (price, amount)
 
-"""to get price and amount of shares from the internet. Using selenium to get all info because of javascript"""
+
+#to get price and amount of shares from the internet. Using selenium to get all info because of javascript
 def parser(name): 
     #print("Getting price and amount of shares")
     site_url = f"https://bcs-express.ru/kotirovki-i-grafiki/{name}"
@@ -271,8 +319,11 @@ def parser(name):
     #print(amount_sel)
     amount = float(amount_sel[5].text.replace(" ", "").replace(",", "."))
     page.quit()
+    
     return (price, amount)
- 
+
+
+#to get price and amount of shares from tinkoff api 
 def tinkoff_api(name):
     ticker_query_price = str()
     ticker_price_result = str()
@@ -289,9 +340,11 @@ def tinkoff_api(name):
         ticker_price_result = ticker_price_response.last_prices[0].price
         amount = ticker_query_amount.issue_size
         price = float(str(ticker_price_result.units) + "." + str(ticker_price_result.nano))
+        
         return (price, amount)
 
-"""using mysql"""
+
+#write ticker info to db, using mysql
 def write_db_mysql(ticker):
     if ticker.pe != 0 and ticker.ps != 0:
         try:
@@ -317,7 +370,8 @@ def write_db_mysql(ticker):
         except sql.Error as e:
             print(e)
 
-"""To check if the data is already available in db"""
+
+#To check if the data is already available in db
 def check_db_postsql(url):
     conn = psql.connect(os.environ["PSQL"])
     cur = conn.cursor()
@@ -328,11 +382,14 @@ def check_db_postsql(url):
         pe = float(result[-2])        
         print("Data is already available")
         print(pe, ps)
+        
         return pe, ps
     else:
+        
         return None
 
-"""using postgresql"""
+
+#to write ticker info to db, using postgresql
 def write_db_postsql(ticker):
     conn = psql.connect(os.environ["PSQL"])
     cur = conn.cursor()
@@ -344,6 +401,8 @@ def write_db_postsql(ticker):
     cur.close()
     conn.close() 
 
+
+#to print all info from postgersql
 def read_all_db_postsql():
     conn = psql.connect(os.environ["PSQL"])
     cur = conn.cursor()
@@ -353,11 +412,15 @@ def read_all_db_postsql():
     cur.close()
     conn.close()
 
+
+#to print all info from mysql
 def print_db_mysql(line):
     for i in line:
         print(f'{i:<18}',end = "")
     print(end="\n")
 
+
+#to check if info in query is already contained in db
 def check_db_sqlalchemy(url, table):
     engine = sqlalchemy.create_engine(os.environ["SQLAlchemy"])
     with engine.connect() as conn:
@@ -368,10 +431,14 @@ def check_db_sqlalchemy(url, table):
             pe = float(result[-2])        
             print("Data is already available")
             print(pe, ps)
+            
             return pe, ps
         else:
+            
             return None
 
+
+#to write info to db using sqlalchemy
 def write_db_sqlalchemy(ticker, table):
     engine = sqlalchemy.create_engine(os.environ["SQLAlchemy"])
     with engine.connect() as conn:
@@ -381,6 +448,8 @@ def write_db_sqlalchemy(ticker, table):
         conn.execute(query)
         conn.commit()
 
+
+#to read all data from db using sqlalchemy
 def read_all_db_sqlalchemy(table):
     engine = sqlalchemy.create_engine(os.environ["SQLAlchemy"])
     with engine.connect() as conn:
@@ -388,30 +457,41 @@ def read_all_db_sqlalchemy(table):
         result = conn.execute(query).fetchall()
         for i in result:
             print(i)
+        
         return result
 
+
+#analyze collected data to get pe, ps multipliers
 def analyze_data(ticker): #just do the math
     ticker.capitalization = ticker.price * ticker.amount
     if ticker.pribyl != 0:
         pe = ticker.capitalization / ticker.pribyl
     if ticker.viruchka != 0:
         ps= ticker.capitalization / ticker.viruchka
+    
     return pe, ps
 
+
+#Keep track of time
 def timetrack(func):
     def count_time(*arg):
         start_time = time.time() #checking how long code executes
         result = func(*arg)
         print(f"--- {time.time() - start_time} seconds ---")
         return result
+    
     return count_time
 
+
+#just run the program
 @timetrack
-def run(url, name, method = 'p'):#just run the program
+def run(url, name, method = 'p'):
     ticker = Ticker(url, name)
     check = check_db_sqlalchemy(ticker.url, ticker_info) 
     if check:
+        
         return check
+
     file = get_file(ticker.url, ticker.name) 
     pages_raw = read_content(file)
     ticker.pages = identify_info(ticker, pages_raw)
@@ -421,7 +501,9 @@ def run(url, name, method = 'p'):#just run the program
     ticker.print_ticker_data()
     write_db_sqlalchemy(ticker, ticker_info)
     print(read_all_db_sqlalchemy(ticker_info))
+    
     return (ticker.pe, ticker.ps)
+
 
 if __name__ == "__main__":
     name = 'mtss'
