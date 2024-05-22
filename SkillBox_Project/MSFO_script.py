@@ -371,11 +371,29 @@ def write_db_mysql(ticker):
             print(e)
 
 
-#To check if the data is already available in db
-def check_db_postsql(url):
+#To check if the data is already available in db by url
+def check_db_postsql_url(url):
     conn = psql.connect(os.environ["PSQL"])
     cur = conn.cursor()
     cur.execute("select * from ticker_info where url = %s", (url,))
+    result = cur.fetchone()
+    if result != None:
+        ps = float(result[-1])
+        pe = float(result[-2])        
+        print("Data is already available")
+        print(pe, ps)
+        
+        return pe, ps
+    else:
+        
+        return None
+
+
+#To check if the data is already available in db by ticker
+def check_db_postsql_ticker(name):
+    conn = psql.connect(os.environ["PSQL"])
+    cur = conn.cursor()
+    cur.execute("select * from ticker_info where name = %s", (name,))
     result = cur.fetchone()
     if result != None:
         ps = float(result[-1])
