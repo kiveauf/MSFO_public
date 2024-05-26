@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import FastAPI, Query
 from pydantic import BaseModel
 
 import MSFO_script
@@ -6,8 +8,8 @@ import MSFO_script
 app = FastAPI()
 
 class Ticker(BaseModel):
-    url_to_pdf: str
-    ticker_name: str
+    url_to_pdf: Annotated[str, Query(min_length=1, pattern = '\S+\.pdf')]
+    ticker_name: Annotated[str, Query(pattern = '^\w{1,4}$')]
     #parse_method: str
 
 
@@ -17,7 +19,7 @@ async def get_root():
 
 
 @app.get("/MSFO/url")
-async def get_ticker_info_url(url_to_pdf : str):
+def get_ticker_info_url(url_to_pdf : Annotated[str, Query(min_length=1, pattern = '\S+\.pdf')]):
     info = MSFO_script.check_db_postsql_url(url_to_pdf)
     if info == None:
         return {"answer": "No data analyzed yet"}
@@ -25,7 +27,7 @@ async def get_ticker_info_url(url_to_pdf : str):
 
 
 @app.get("/MSFO/ticker")
-async def get_ticker_info_ticker(ticker_name : str):
+def get_ticker_info_ticker(ticker_name : Annotated[str, Query(pattern = '^\w{1,4}$')]):
     info = MSFO_script.check_db_postsql_ticker(ticker_name)
     if info == None:
         return {"answer": "No data analyzed yet"}

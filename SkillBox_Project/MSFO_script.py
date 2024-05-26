@@ -6,6 +6,7 @@ use python 3.9
 import time
 import os
 import re
+
 import requests
 import logging
 from selenium import webdriver
@@ -19,6 +20,8 @@ import camelot
 import pandas as pd
 import sqlalchemy
 from DocsTest import docs
+from urllib.parse import urlparse
+
 
 #using this to get enviroment custom-made constant                                             
 load_dotenv()
@@ -40,9 +43,9 @@ ticker_info = sqlalchemy.Table(
 
 
 class Ticker():
-    def __init__(self, url, name):
-        self.url = url
-        self.name = name
+    def __init__(self):
+        self.url = str()
+        self.name = str()
         self.pribyl = 0
         self.viruchka = 0
         self.price = float()
@@ -57,10 +60,30 @@ class Ticker():
         print("__print_ticker_data()___")
         for i in self.__dict__.items():
             print(i)
- 
 
-#take url of the file            
+    def validate_info(self, url, name):
+        
+        if not urlparse(url).scheme:
+            url = "https://" + url
+
+        self.url = url.lower()
+        self.name = name.lower()
+
+
+#Keep track of time
+def timetrack(func):
+    def count_time(*arg):
+        start_time = time.time() #checking how long code executes
+        result = func(*arg)
+        print(f"--- {time.time() - start_time} seconds ---")
+        return result
+    
+    return count_time 
+
+
+#take url of the file
 def get_file(url, name): 
+
     file = requests.get(url)
     filename = f"{name.lower()}_MSFO.pdf"
     with open(file = filename, mode = 'wb') as f:
@@ -323,7 +346,7 @@ def parser(name):
     return (price, amount)
 
 
-#to get price and amount of shares from tinkoff api 
+#to get price and amount of shares from tinkoff api
 def tinkoff_api(name):
     ticker_query_price = str()
     ticker_price_result = str()
@@ -344,38 +367,11 @@ def tinkoff_api(name):
         return (price, amount)
 
 
-#write ticker info to db, using mysql
-def write_db_mysql(ticker):
-    if ticker.pe != 0 and ticker.ps != 0:
-        try:
-            with sql.connect(host="127.0.0.1", user = os.environ['MYSQL_user'], #input("Type user name: "), 
-                             password = os.environ['MYSQL_password'], #getpass.getpass("Type password: "), 
-                             database = "fm") as connection:
-                query_select =  "SELECT * from fm_table"
-                query_insert = "INSERT INTO fm_table (ticker, revenue, income, pe, ps, amount, price, cap) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-                with connection.cursor() as cursor:
-                    #to see columns
-                    cursor.execute("desc fm_table")
-                    print_db_mysql([column[0] for column in cursor.fetchall()])   
-                    #to add data
-                    data = (ticker.name, ticker.viruchka, ticker.pribyl, ticker.pe,
-                           ticker.ps, ticker.amount, ticker.price, ticker.capitalization)
-                    cursor.execute(query_insert, data)
-                    connection.commit()
-                    #to print all lines
-                    cursor.execute(query_select)
-                    result = cursor.fetchall()
-                    for line in result:
-                        print_db_mysql(line)
-        except sql.Error as e:
-            print(e)
-
-
 #To check if the data is already available in db by url
 def check_db_postsql_url(url):
     conn = psql.connect(os.environ["PSQL"])
     cur = conn.cursor()
-    cur.execute("select * from ticker_info where url = %s", (url,))
+    cur.execute("select * from ticker_info where url = %s", (url.lower(),))
     result = cur.fetchone()
     if result != None:
         ps = float(result[-1])
@@ -393,7 +389,7 @@ def check_db_postsql_url(url):
 def check_db_postsql_ticker(name):
     conn = psql.connect(os.environ["PSQL"])
     cur = conn.cursor()
-    cur.execute("select * from ticker_info where name = %s", (name,))
+    cur.execute("select * from ticker_info where name = %s", (name.lower(),))
     result = cur.fetchone()
     if result != None:
         ps = float(result[-1])
@@ -431,18 +427,11 @@ def read_all_db_postsql():
     conn.close()
 
 
-#to print all info from mysql
-def print_db_mysql(line):
-    for i in line:
-        print(f'{i:<18}',end = "")
-    print(end="\n")
-
-
 #to check if info in query is already contained in db
 def check_db_sqlalchemy(url, table):
     engine = sqlalchemy.create_engine(os.environ["SQLAlchemy"])
     with engine.connect() as conn:
-        query = sqlalchemy.select(table).where(table.columns.url == url)
+        query = sqlalchemy.select(table).where(table.columns.url == url.lower())
         result = conn.execute(query).fetchone()
         if result != None:
             ps = float(result[-1])
@@ -490,21 +479,11 @@ def analyze_data(ticker): #just do the math
     return pe, ps
 
 
-#Keep track of time
-def timetrack(func):
-    def count_time(*arg):
-        start_time = time.time() #checking how long code executes
-        result = func(*arg)
-        print(f"--- {time.time() - start_time} seconds ---")
-        return result
-    
-    return count_time
-
-
 #just run the program
 @timetrack
 def run(url, name, method = 'p'):
-    ticker = Ticker(url, name)
+    ticker = Ticker()
+    ticker.validate_info(url, name)
     check = check_db_sqlalchemy(ticker.url, ticker_info) 
     if check:
         
@@ -518,13 +497,13 @@ def run(url, name, method = 'p'):
     ticker.pe, ticker.ps = analyze_data(ticker)
     ticker.print_ticker_data()
     write_db_sqlalchemy(ticker, ticker_info)
-    print(read_all_db_sqlalchemy(ticker_info))
+    #print(read_all_db_sqlalchemy(ticker_info))
     
     return (ticker.pe, ticker.ps)
 
 
 if __name__ == "__main__":
-    name = 'mtss'
+    name = 'MTSS'
     run(docs[1], name, 't')
     
 
