@@ -13,7 +13,6 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from tinkoff.invest import Client
-import mysql.connector as sql
 import psycopg2 as psql
 from dotenv import load_dotenv
 import camelot
@@ -85,7 +84,7 @@ def timetrack(func):
 def get_file(url, name): 
 
     file = requests.get(url)
-    filename = f"{name.lower()}_MSFO.pdf"
+    filename = f"{os.environ['FOLDER']}{name.lower()}_MSFO.pdf"
     with open(file = filename, mode = 'wb') as f:
         f.write(file.content)
     
@@ -369,7 +368,8 @@ def tinkoff_api(name):
 
 #To check if the data is already available in db by url
 def check_db_postsql_url(url):
-    conn = psql.connect(os.environ["PSQL"])
+    conn = psql.connect(database=os.environ["DB_NAME"], user=os.environ["DB_USER"],
+                        password=os.environ["DB_PASSWORD"], host=os.environ["DB_HOST"])
     cur = conn.cursor()
     cur.execute("select * from ticker_info where url = %s", (url.lower(),))
     result = cur.fetchone()
@@ -387,7 +387,8 @@ def check_db_postsql_url(url):
 
 #To check if the data is already available in db by ticker
 def check_db_postsql_ticker(name):
-    conn = psql.connect(os.environ["PSQL"])
+    conn = psql.connect(database=os.environ["DB_NAME"], user=os.environ["DB_USER"],
+                        password=os.environ["DB_PASSWORD"], host=os.environ["DB_HOSTT"])
     cur = conn.cursor()
     cur.execute("select * from ticker_info where name = %s", (name.lower(),))
     result = cur.fetchone()
@@ -405,7 +406,8 @@ def check_db_postsql_ticker(name):
 
 #to write ticker info to db, using postgresql
 def write_db_postsql(ticker):
-    conn = psql.connect(os.environ["PSQL"])
+    conn = psql.connect(database=os.environ["DB_NAME"], user=os.environ["DB_USER"],
+                        password=os.environ["DB_PASSWORD"], host=os.environ["DB_HOST"])
     cur = conn.cursor()
     # Execute a query
     cur.execute("INSERT into ticker_info (url, name, pribyl, viruchka, price, amount, measuring_unit, pe, ps) VALUES \
@@ -418,7 +420,8 @@ def write_db_postsql(ticker):
 
 #to print all info from postgersql
 def read_all_db_postsql():
-    conn = psql.connect(os.environ["PSQL"])
+    conn = psql.connect(database=os.environ["DB_NAME"], user=os.environ["DB_USER"],
+                        password=os.environ["DB_PASSWORD"], host=os.environ["DB_HOST"])
     cur = conn.cursor()
     cur.execute("select * from ticker_info")
     records = cur.fetchall()
