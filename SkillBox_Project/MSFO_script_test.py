@@ -11,7 +11,7 @@ class Test_test_1(unittest.TestCase):
         MSFO_script.amount_line = str()
 
 
-    @unittest.skip()    
+    @unittest.skip   
     def test_magnit_parsing(self):
         url = docs[0]
         print("magnit_parsing")
@@ -30,7 +30,7 @@ class Test_test_1(unittest.TestCase):
         self.assertTrue(result[1] != 0)
 
 
-    @unittest.skip()    
+    @unittest.skip    
     def test_rushydro_parsing(self):
         url = docs[4]
         print("hydro_parsing")
@@ -40,7 +40,7 @@ class Test_test_1(unittest.TestCase):
         self.assertTrue(result[1] != 0)
     
 
-    @unittest.skip()    
+    @unittest.skip    
     def test_magnit_tinkoff_api(self):
         url = docs[0]
         print("magnit_tinkoff")
@@ -59,7 +59,7 @@ class Test_test_1(unittest.TestCase):
         self.assertTrue(result[1] != 0)
     
     
-    @unittest.skip()    
+    @unittest.skip   
     def test_rushydro_tinkoff_api(self):
         url = docs[4]
         print("hydro_tinkoff")
