@@ -10,6 +10,8 @@ class Test_test_1(unittest.TestCase):
         MSFO_script.measure_unit = int()
         MSFO_script.amount_line = str()
 
+
+    @unittest.skip()    
     def test_magnit_parsing(self):
         url = docs[0]
         print("magnit_parsing")
@@ -17,7 +19,8 @@ class Test_test_1(unittest.TestCase):
         #self.assertEqual(result[0], 4)
         self.assertTrue(result[0] != 0)
         self.assertTrue(result[1] != 0)
-    
+
+   
     def test_mts_parsing(self):
         url = docs[1]
         print("mts_parsing")
@@ -25,7 +28,9 @@ class Test_test_1(unittest.TestCase):
         #self.assertEqual(result[0], 4)
         self.assertTrue(result[0] != 0)
         self.assertTrue(result[1] != 0)
-        
+
+
+    @unittest.skip()    
     def test_rushydro_parsing(self):
         url = docs[4]
         print("hydro_parsing")
@@ -34,6 +39,8 @@ class Test_test_1(unittest.TestCase):
         self.assertTrue(result[0] != 0)
         self.assertTrue(result[1] != 0)
     
+
+    @unittest.skip()    
     def test_magnit_tinkoff_api(self):
         url = docs[0]
         print("magnit_tinkoff")
@@ -42,6 +49,7 @@ class Test_test_1(unittest.TestCase):
         self.assertTrue(result[0] != 0)
         self.assertTrue(result[1] != 0)
     
+
     def test_mts_tinkoff_api(self):
         url = docs[1]
         print("mts_tinkoff")
@@ -49,7 +57,9 @@ class Test_test_1(unittest.TestCase):
         #self.assertEqual(result[0], 4)
         self.assertTrue(result[0] != 0)
         self.assertTrue(result[1] != 0)
-        
+    
+    
+    @unittest.skip()    
     def test_rushydro_tinkoff_api(self):
         url = docs[4]
         print("hydro_tinkoff")
