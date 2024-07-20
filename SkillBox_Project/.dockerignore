@@ -11,6 +11,7 @@
 **/.dockerignore
 **/.env
 **/.git
+**/.mypy_cache
 **/lesson_011
 **/lesson_012
 **/lesson_013
